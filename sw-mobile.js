@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lumo-mobile-v4';
+const CACHE_NAME = 'lumo-mobile-v5';
 const APP_SHELL = [
   './index.html',
   './mobile.html',

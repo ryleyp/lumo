@@ -159,6 +159,17 @@
   }
   .preset:hover{border-color:#3a4051}
   .preset.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .custom-preset{position:relative;padding-right:30px}
+  .delete-preset{
+    position:absolute;right:6px;top:6px;width:22px;height:22px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.16);background:rgba(13,14,18,.72);
+    color:var(--muted);font-size:13px;font-weight:800;line-height:1;cursor:pointer;
+  }
+  .delete-preset:hover{color:var(--text);border-color:var(--accent)}
+  .empty-presets{
+    display:none;border:1px dashed var(--line);border-radius:10px;padding:12px;
+    color:var(--muted);font-size:12px;text-align:center;margin-top:10px;
+  }
   .swatch{height:44px;border-radius:8px;margin-bottom:8px}
   .sw-smart{background:linear-gradient(135deg,#fff2d0,#ffd9a0 45%,#e9b878)}
   .sw-flash{background:linear-gradient(135deg,#dfe7e2,#c7d0cc 40%,#6f7a76)}
@@ -314,6 +325,17 @@
       </div>
     </div>
 
+    <details class="card" id="customCard" data-panel="looks" open>
+      <summary>Saved presets</summary>
+      <div class="details-body">
+        <div class="btns" style="margin-bottom:10px">
+          <button class="act" id="saveLookBtn" type="button" disabled>Save current</button>
+        </div>
+        <div class="presets" id="customPresets"></div>
+        <div class="empty-presets" id="customEmpty">No saved presets</div>
+      </div>
+    </details>
+
     <details class="card" id="dazzCard" data-panel="looks">
       <summary>Dazz-style filters</summary>
       <div class="details-body">
@@ -367,8 +389,16 @@
         <label class="switch"><input type="checkbox" id="clean" checked><span class="track"></span></label>
       </div>
       <div class="toggle-row">
-        <span>AI Focus <span style="opacity:.7">· pop the subject</span></span>
+        <span>Subject mask <span style="opacity:.7">· pop the subject</span></span>
         <label class="switch"><input type="checkbox" id="focus"><span class="track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span>Show mask</span>
+        <label class="switch"><input type="checkbox" id="showMask"><span class="track"></span></label>
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Background blur <b id="bgBlurVal">0%</b></label>
+        <input type="range" id="backgroundBlur" min="0" max="100" value="0" />
       </div>
     </div>
 
@@ -704,10 +734,12 @@ const state = {
   lightSoftness:50,
   lightWarmth:0,
   lightBackdrop:45,
+  backgroundBlur:0,
   cropMode:'free',
   straighten:0,
   exportSize:'original',
-  hqExport:true
+  hqExport:true,
+  showMask:false
 };
 /* Global AI Focus: minimal-blur subject pop layered on any preset */
 const FOCUS = { bokeh:0.15, dim:0.10, lift:0.10, clarity:0.40 };
@@ -756,6 +788,7 @@ let fullBuf = null, smallBuf = null, srcImage = null, sourceImage = null;
 let holding = false, fullTimer = null, renderSeq = 0, historyLock = false;
 let installPrompt = null;
 const tmpCanvas = document.createElement('canvas');
+const maskCanvas = document.createElement('canvas');
 const CUSTOM_PRESET_KEY = 'lumo.customPresets.v1';
 const CUSTOM_PRESET_STATE = {};
 const CUSTOM_PRESET_NAMES = {};
@@ -901,10 +934,19 @@ function process(buf){
   const rel=(p.relight||0)*amt*(state.clean?0.90:1);
   const hot=(p.hotspot||0)*amt*(state.clean?0.82:1);
   const relWarm=p.relightWarm||0;
-  // Depth: preset's own depth (scaled by intensity), else the
-  // global AI Focus layer (fixed strength, works on any preset)
+  // Subject mask tools work on every filter. Presets can still
+  // supply subject lift/clarity, while the global blur slider owns
+  // the bokeh amount.
+  const blurAmount=clamp(state.backgroundBlur||0,0,1);
   const usePresetDepth = p.depth && amt>0;
-  const depth = usePresetDepth ? p.depth : (state.focus ? FOCUS : null);
+  const maskDepthOn = usePresetDepth || state.focus || blurAmount>0.001;
+  const baseDepth = usePresetDepth ? p.depth : FOCUS;
+  const depth = maskDepthOn ? {
+    bokeh:blurAmount,
+    dim:usePresetDepth ? (baseDepth.dim||0) : (state.focus ? FOCUS.dim : 0.04),
+    lift:(usePresetDepth || state.focus) ? (baseDepth.lift||0) : 0,
+    clarity:(usePresetDepth || state.focus) ? (baseDepth.clarity||0) : 0
+  } : null;
   const depthAmt = usePresetDepth ? amt : 1;
   const mask=depth?(buf.mask||buf.radial):null;
   const soften=(p.soften||0)*amt*(state.clean?0.85:1);            // negative texture/clarity
@@ -1084,7 +1126,8 @@ function render(fast){
   const buf = fast ? smallBuf : fullBuf;
   if(!buf) return;
   const out = process(buf);
-  if(fast && buf!==fullBuf){
+  const scaled = fast && buf!==fullBuf;
+  if(scaled){
     tmpCanvas.width=out.width; tmpCanvas.height=out.height;
     tmpCanvas.getContext('2d').putImageData(out,0,0);
     ctx.imageSmoothingEnabled=true;
@@ -1092,6 +1135,7 @@ function render(fast){
   }else{
     ctx.putImageData(out,0,0);
   }
+  if(state.showMask) drawMaskOverlay(buf,scaled);
 }
 function setBusy(on){ busy.classList.toggle('on', !!on); }
 function renderPreview(){
@@ -1107,6 +1151,24 @@ function renderPreview(){
   },360);
 }
 function showOriginal(){ if(srcImage) ctx.putImageData(srcImage,0,0); }
+function drawMaskOverlay(buf,scaled){
+  const mask=buf && (buf.mask||buf.radial);
+  if(!mask) return;
+  const w=buf.img.width, h=buf.img.height;
+  maskCanvas.width=w; maskCanvas.height=h;
+  const mctx=maskCanvas.getContext('2d');
+  const overlay=mctx.createImageData(w,h);
+  for(let i=0;i<w*h;i++){
+    const a=Math.round(18+mask[i]*112);
+    const j=i*4;
+    overlay.data[j]=233;
+    overlay.data[j+1]=196;
+    overlay.data[j+2]=106;
+    overlay.data[j+3]=a;
+  }
+  mctx.putImageData(overlay,0,0);
+  ctx.drawImage(maskCanvas,0,0,scaled?canvas.width:w,scaled?canvas.height:h);
+}
 
 /* ---------- Image loading ---------- */
 const isHeic = f => /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
@@ -1188,6 +1250,7 @@ function setupImage(img){
   $('#drop').style.display='none';
   stage.classList.remove('empty');
   $('#saveBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
+  $('#saveLookBtn').disabled=false;
   $('#compareBtn').disabled=false;
   cmpHint.style.display='block';
   renderPreview();
@@ -1300,7 +1363,7 @@ lightHandle.addEventListener('pointerdown', e=>{
 window.addEventListener('resize', placeHandle);
 
 function usesMask(){
-  return !!PRESETS[currentPreset].depth || state.focus || params.hotspot>0.001;
+  return !!params.depth || state.focus || (state.backgroundBlur||0)>0.001 || state.showMask || params.hotspot>0.001;
 }
 
 function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
@@ -1415,6 +1478,9 @@ function syncMainControls(){
   $('#aiclarity').value=Math.round(state.aiClarity*100); $('#aicVal').textContent=Math.round(state.aiClarity*100);
   $('#clean').checked=state.clean;
   $('#focus').checked=state.focus;
+  $('#showMask').checked=state.showMask;
+  $('#backgroundBlur').value=Math.round(state.backgroundBlur*100);
+  $('#bgBlurVal').textContent=Math.round(state.backgroundBlur*100)+'%';
   $('#straighten').value=state.straighten; $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
   $('#exportSize').value=state.exportSize;
   $('#hqExport').checked=state.hqExport;
@@ -1471,6 +1537,7 @@ function presetStateSnapshot(){
     aiClarity:state.aiClarity,
     clean:state.clean,
     focus:state.focus,
+    backgroundBlur:state.backgroundBlur,
     light:{...state.light},
     lightMode:state.lightMode,
     lightAmount:state.lightAmount,
@@ -1485,6 +1552,7 @@ function applyPresetState(saved){
   state.aiClarity=saved.aiClarity!==undefined?saved.aiClarity:state.aiClarity;
   state.clean=saved.clean!==undefined?saved.clean:state.clean;
   state.focus=!!saved.focus;
+  if(saved.backgroundBlur!==undefined) state.backgroundBlur=saved.backgroundBlur;
   state.light=saved.light?{...saved.light}:defaultLight();
   if(saved.lightMode) state.lightMode=saved.lightMode;
   if(saved.lightAmount!==undefined) state.lightAmount=saved.lightAmount;
@@ -1493,19 +1561,32 @@ function applyPresetState(saved){
   if(saved.lightBackdrop!==undefined) state.lightBackdrop=saved.lightBackdrop;
   syncMainControls();
 }
+function defaultBackgroundBlurForPreset(id){
+  const d=PRESETS[id] && PRESETS[id].depth;
+  return d && d.bokeh!==undefined ? clamp(d.bokeh,0,1) : 0;
+}
 function customSwatch(p){
   const warm=clamp(((p.rGain||1)-(p.bGain||1))*160, -35, 35);
   const sat=clamp((p.sat||1)*45, 30, 72);
   return `linear-gradient(135deg,hsl(${42+warm} 82% 86%),hsl(${205-warm} ${sat}% 70%) 45%,hsl(226 18% 24%))`;
 }
+function updateCustomEmpty(){
+  const list=$('#customPresets');
+  const empty=$('#customEmpty');
+  if(!list || !empty) return;
+  empty.style.display=list.children.length?'none':'block';
+}
 function addCustomPresetTile(id,name,p){
+  const parent=$('#customPresets') || $('#presets');
   const tile=document.createElement('div');
-  tile.className='preset';
+  tile.className='preset custom-preset';
   tile.dataset.preset=id;
-  tile.innerHTML='<div class="swatch"></div><div class="name"></div><div class="sub">custom</div>';
+  tile.innerHTML='<button class="delete-preset" type="button" title="Delete preset" aria-label="Delete preset">x</button><div class="swatch"></div><div class="name"></div><div class="sub">custom</div>';
+  tile.querySelector('.delete-preset').dataset.deletePreset=id;
   tile.querySelector('.swatch').style.background=customSwatch(p);
   tile.querySelector('.name').textContent=name;
-  $('#presets').appendChild(tile);
+  parent.appendChild(tile);
+  updateCustomEmpty();
 }
 function readCustomPresetList(){
   try{
@@ -1515,6 +1596,9 @@ function readCustomPresetList(){
     return [];
   }
 }
+function writeCustomPresetList(list){
+  localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
+}
 function loadCustomPresets(){
   for(const item of readCustomPresetList()){
     if(!item || !item.id || !item.params) continue;
@@ -1523,6 +1607,7 @@ function loadCustomPresets(){
     CUSTOM_PRESET_NAMES[item.id]=item.name||'My Preset';
     addCustomPresetTile(item.id,CUSTOM_PRESET_NAMES[item.id],item.params);
   }
+  updateCustomEmpty();
 }
 function saveCustomPreset(){
   if(!srcImage) return;
@@ -1537,12 +1622,34 @@ function saveCustomPreset(){
   };
   const list=readCustomPresetList();
   list.push(item);
-  localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
+  try{
+    writeCustomPresetList(list);
+  }catch(e){
+    alert('Could not save this preset. Your browser storage may be full.');
+    return;
+  }
   PRESETS[id]=item.params;
   CUSTOM_PRESET_STATE[id]=item.state;
   CUSTOM_PRESET_NAMES[id]=item.name;
   addCustomPresetTile(id,item.name,item.params);
   selectPreset(id);
+}
+function deleteCustomPreset(id){
+  const name=CUSTOM_PRESET_NAMES[id]||'this preset';
+  if(!confirm('Delete "'+name+'"?')) return;
+  const list=readCustomPresetList().filter(item=>item && item.id!==id);
+  writeCustomPresetList(list);
+  delete PRESETS[id];
+  delete CUSTOM_PRESET_STATE[id];
+  delete CUSTOM_PRESET_NAMES[id];
+  const tile=document.querySelector(`[data-preset="${id}"]`);
+  if(tile) tile.remove();
+  updateCustomEmpty();
+  if(currentPreset===id){
+    currentPreset='smart';
+    document.querySelectorAll('.preset').forEach(p=>p.classList.remove('active'));
+    $('#tunePreset').textContent='Unsaved Look';
+  }
 }
 
 function updateHint(){
@@ -1567,6 +1674,7 @@ function selectPreset(id){
   currentPreset=id;
   document.querySelectorAll('.preset').forEach(p=>p.classList.toggle('active',p.dataset.preset===id));
   params=clonePreset(currentPreset);
+  state.backgroundBlur=defaultBackgroundBlurForPreset(id);
   if(CUSTOM_PRESET_STATE[id]){
     applyPresetState(CUSTOM_PRESET_STATE[id]);
   }else{
@@ -1581,6 +1689,13 @@ function selectPreset(id){
 }
 
 document.querySelector('aside').addEventListener('click', e=>{
+  const del=e.target.closest('[data-delete-preset]');
+  if(del){
+    e.preventDefault();
+    e.stopPropagation();
+    deleteCustomPreset(del.dataset.deletePreset);
+    return;
+  }
   const el=e.target.closest('.preset'); if(!el) return;
   selectPreset(el.dataset.preset);
 });
@@ -1600,7 +1715,7 @@ function bindPreHistory(el){
   el.addEventListener('pointerdown',()=>pushHistory());
   el.addEventListener('keydown',e=>{ if(e.key==='Enter' || e.key===' ') pushHistory(); });
 }
-['intensity','aiclarity','clean','focus','lightAmount','lightSoftness','lightWarmth','lightBackdrop','straighten','exportSize','hqExport','resetBtn'].forEach(id=>bindPreHistory($('#'+id)));
+['intensity','aiclarity','clean','focus','showMask','backgroundBlur','lightAmount','lightSoftness','lightWarmth','lightBackdrop','straighten','exportSize','hqExport','resetBtn'].forEach(id=>bindPreHistory($('#'+id)));
 document.querySelectorAll('#sliders input[type=range]').forEach(bindPreHistory);
 
 $('#intensity').addEventListener('input', e=>{
@@ -1620,8 +1735,25 @@ $('#clean').addEventListener('change', e=>{
 });
 $('#focus').addEventListener('change', e=>{
   state.focus=e.target.checked;
+  if(state.focus && !params.depth && state.backgroundBlur<FOCUS.bokeh){
+    state.backgroundBlur=FOCUS.bokeh;
+    syncMainControls();
+  }
   updateHint();
   if(state.focus) computeMasks();          // computes once, then cached
+  renderPreview();
+});
+$('#showMask').addEventListener('change', e=>{
+  state.showMask=e.target.checked;
+  updateHint();
+  if(state.showMask) computeMasks();
+  renderPreview();
+});
+$('#backgroundBlur').addEventListener('input', e=>{
+  state.backgroundBlur=e.target.value/100;
+  $('#bgBlurVal').textContent=e.target.value+'%';
+  updateHint();
+  if(state.backgroundBlur>0) computeMasks();
   renderPreview();
 });
 $('#lightModes').addEventListener('click', e=>{
@@ -1698,13 +1830,14 @@ $('#resetBtn').addEventListener('click', ()=>{
   if(saved){
     applyPresetState(saved);
   }else{
-    state.intensity=DEFAULT_INTENSITY; state.aiClarity=0; state.clean=true; state.focus=false; state.light=defaultLight();
+    state.intensity=DEFAULT_INTENSITY; state.aiClarity=0; state.clean=true; state.focus=false; state.backgroundBlur=defaultBackgroundBlurForPreset(currentPreset); state.light=defaultLight();
     syncMainControls();
   }
   syncSliders(); syncLightControlsFromParams(); updateHint(); placeHandle(); render(false);
   if(usesMask()) computeMasks();
 });
 $('#presetBtn').addEventListener('click', saveCustomPreset);
+$('#saveLookBtn').addEventListener('click', saveCustomPreset);
 
 function exportDimensions(srcCanvas){
   if(state.exportSize==='1080-square') return {w:1080,h:1080};

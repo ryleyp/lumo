@@ -8,6 +8,7 @@ Lumo is a static, on-device film preset editor.
 - HEIC decoding uses the bundled `heic2any.min.js` file.
 - No paid API, backend, or server-side processing is required.
 - Mobile previews use a smaller working image for speed, but export renders from the original decoded photo at original dimensions unless a social export size is selected.
+- Mobile saved presets are stored in the browser on that device, and subject-mask blur runs on-device.
 
 ## GitHub Pages
 
