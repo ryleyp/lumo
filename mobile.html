@@ -477,7 +477,8 @@
       </div>
       <div class="btns">
         <button class="act" id="resetBtn" disabled>Reset</button>
-        <button class="act primary" id="saveBtn" disabled>Save</button>
+        <button class="act" id="saveBtn" disabled>Save file</button>
+        <button class="act primary" id="savePhotosBtn" disabled>Save to Photos</button>
       </div>
     </div>
     <div class="foot">
@@ -735,6 +736,7 @@ const PRESETS = {
 const DEFAULT_INTENSITY = 0.75;
 const EXPORT_JPEG_QUALITY = 0.99;
 const EDIT_MAX_SIZE = 1600, PREVIEW_MAX_SIZE = 640;
+const SAFE_EXPORT_MAX_SIZE = 2400;
 const state = {
   intensity:DEFAULT_INTENSITY,
   focus:false,
@@ -1262,7 +1264,7 @@ function setupImage(img){
   canvas.style.display='block';
   $('#drop').style.display='none';
   stage.classList.remove('empty');
-  $('#saveBtn').disabled=false; $('#bestQualityBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
+  $('#saveBtn').disabled=false; $('#savePhotosBtn').disabled=false; $('#bestQualityBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
   $('#saveLookBtn').disabled=false;
   $('#compareBtn').disabled=false;
   cmpHint.style.display='block';
@@ -1931,12 +1933,12 @@ function makeExportCanvas(srcCanvas){
   octx.drawImage(srcCanvas,sx,sy,sw,sh,0,0,dims.w,dims.h);
   return out;
 }
-function renderOriginalExportCanvas(){
+function renderOriginalExportCanvas(maxSize=Infinity){
   if(!sourceImage){
     render(false);
     return canvas;
   }
-  const exportImage=buildSourceImageData(sourceImage,Infinity);
+  const exportImage=buildSourceImageData(sourceImage,maxSize);
   const exportBuf=buildBuffers(exportImage);
   if(fullBuf && fullBuf.mask){
     exportBuf.mask=scaledMask(fullBuf.mask,fullBuf.img.width,fullBuf.img.height,exportImage.width,exportImage.height);
@@ -1966,43 +1968,74 @@ function exportWarningMessage(out){
   const why=reasons.length ? '\n\nThis is usually caused by: '+reasons.join(', ')+'.' : '';
   return `Export size is ${out.width} x ${out.height}.\nImported photo is ${src.w} x ${src.h}.${why}\n\nContinue saving?`;
 }
-function saveCurrentExport(bestQuality=false){
-  if(bestQuality){
+function canvasToBlob(canvas,type,quality){
+  return new Promise(resolve=>canvas.toBlob(resolve,type,quality));
+}
+async function buildExportCanvasForSave(options={}){
+  if(options.bestQuality){
     state.exportSize='original';
     state.exportFormat='png';
     state.hqExport=true;
     syncMainControls();
   }
+  const maxSize=options.bestQuality ? Infinity : SAFE_EXPORT_MAX_SIZE;
+  const base=renderOriginalExportCanvas(maxSize);
+  return makeExportCanvas(base);
+}
+async function saveCurrentExport(options={}){
   setBusy(true);
-  requestAnimationFrame(()=>{
+  requestAnimationFrame(async ()=>{
     try{
-      const base=renderOriginalExportCanvas();
-      const out=makeExportCanvas(base);
-      const warning=exportWarningMessage(out);
-      if(warning && !confirm(warning)){
-        setBusy(false);
+      const out=await buildExportCanvasForSave(options);
+      if(options.bestQuality){
+        const warning=exportWarningMessage(out);
+        if(warning && !confirm(warning)){
+          setBusy(false);
+          return;
+        }
+      }
+      const wantsPng=options.bestQuality || (!options.photos && state.exportFormat==='png');
+      const type=wantsPng?'image/png':'image/jpeg';
+      const ext=wantsPng?'png':'jpg';
+      const quality=wantsPng?undefined:(state.hqExport?EXPORT_JPEG_QUALITY:0.98);
+      const blob=await canvasToBlob(out,type,quality);
+      setBusy(false);
+      if(!blob){ alert('Could not save this image.'); return; }
+      const filename=`lumo-${currentPreset}.${ext}`;
+      if(options.photos){
+        if(typeof File !== 'function'){
+          alert('Your browser cannot send images directly to Photos. Lumo will save the image as a file instead.');
+          downloadBlob(blob,filename);
+          return;
+        }
+        const file=new File([blob],filename,{type});
+        if(navigator.canShare && navigator.canShare({files:[file]}) && navigator.share){
+          await navigator.share({files:[file],title:'Lumo photo'}).catch(()=>null);
+        }else{
+          alert('Your browser cannot save directly to Photos. Lumo will save the image as a file instead.');
+          downloadBlob(blob,filename);
+        }
         return;
       }
-      const a=document.createElement('a');
-      const png=state.exportFormat==='png';
-      a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
-      out.toBlob(blob=>{
-        setBusy(false);
-        if(!blob){ alert('Could not save this image.'); return; }
-        const url=URL.createObjectURL(blob);
-        a.href=url;
-        a.click();
-        setTimeout(()=>URL.revokeObjectURL(url),1000);
-      }, png?'image/png':'image/jpeg', png?undefined:(state.hqExport?EXPORT_JPEG_QUALITY:0.98));
+      downloadBlob(blob,filename);
     }catch(e){
-      console.warn('full quality export failed:',e);
+      console.warn('mobile export failed:',e);
       setBusy(false);
-      alert('This photo is too large for full-quality export in this browser. Try closing other tabs, or choose an Instagram export size.');
+      alert('This photo is too large for this browser to export. Try Save to Photos again with JPEG, close other tabs, or choose an Instagram export size.');
     }
   });
 }
-$('#saveBtn').addEventListener('click', ()=>saveCurrentExport(false));
-$('#bestQualityBtn').addEventListener('click', ()=>saveCurrentExport(true));
+function downloadBlob(blob,filename){
+  const a=document.createElement('a');
+  a.download=filename;
+  const url=URL.createObjectURL(blob);
+  a.href=url;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+$('#saveBtn').addEventListener('click', ()=>saveCurrentExport({photos:false}));
+$('#savePhotosBtn').addEventListener('click', ()=>saveCurrentExport({photos:true}));
+$('#bestQualityBtn').addEventListener('click', ()=>saveCurrentExport({bestQuality:true}));
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load', ()=>{
