@@ -1,0 +1,1746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0d0e12" />
+<meta name="application-name" content="Lumo" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Lumo" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="manifest" href="manifest-mobile.webmanifest" />
+<link rel="apple-touch-icon" href="icons/lumo-mobile.svg" />
+<title>Lumo Mobile — Film Presets</title>
+<style>
+  :root{
+    --bg:#0d0e12;
+    --panel:#15171d;
+    --panel-2:#1c1f27;
+    --line:#282c37;
+    --text:#e7e9ee;
+    --muted:#8b909d;
+    --accent:#e9c46a;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:radial-gradient(1200px 600px at 70% -10%, #1a1d26 0%, var(--bg) 55%);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex;align-items:center;gap:12px;
+    padding:16px 22px;border-bottom:1px solid var(--line);
+  }
+  .logo{
+    width:30px;height:30px;border-radius:9px;
+    background:conic-gradient(from 210deg,#e9c46a,#f4a261,#e76f51,#7aa2f7,#e9c46a);
+    box-shadow:0 0 20px rgba(233,196,106,.35);
+  }
+  header h1{font-size:17px;margin:0;letter-spacing:.5px;font-weight:650}
+  header .tag{color:var(--muted);font-size:12.5px;margin-left:2px}
+  .top-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .icon-btn{
+    width:36px;height:34px;border-radius:10px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);font-weight:800;cursor:pointer;
+  }
+  .icon-btn:disabled{opacity:.35;cursor:not-allowed}
+  .privacy{margin-left:auto;color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px}
+  .dot{width:7px;height:7px;border-radius:50%;background:#5bd674;box-shadow:0 0 8px #5bd674}
+
+  main{
+    display:grid;grid-template-columns:1fr 320px;gap:18px;
+    padding:18px 22px;max-width:1200px;margin:0 auto;
+  }
+  @media (max-width:840px){ main{grid-template-columns:1fr} }
+  @media (max-width:700px){
+    body{background:#0d0e12;overflow:hidden}
+    header{
+      position:fixed;left:0;right:0;top:0;z-index:10;
+      padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+      background:rgba(13,14,18,.92);backdrop-filter:blur(14px);
+    }
+    .logo{width:27px;height:27px;border-radius:8px}
+    header h1{font-size:15px}
+    header .tag{font-size:11px}
+    .privacy{display:none}
+    .top-actions{margin-left:auto;gap:6px}
+    .icon-btn{width:34px;height:32px;border-radius:9px}
+    main{
+      display:block;padding:calc(60px + env(safe-area-inset-top)) 10px calc(44svh + env(safe-area-inset-bottom));
+      max-width:none;margin:0;
+    }
+    .stage{
+      min-height:0;height:calc(56svh - env(safe-area-inset-top));
+      border-radius:12px;position:relative;top:0;
+    }
+    #canvas{max-height:100%;border-radius:8px}
+    .drop{padding:26px 18px}
+    aside{
+      position:fixed;left:0;right:0;bottom:0;z-index:9;
+      max-height:44svh;overflow:auto;display:block;
+      padding:10px 10px calc(10px + env(safe-area-inset-bottom));
+      background:rgba(13,14,18,.94);border-top:1px solid var(--line);
+      backdrop-filter:blur(16px);-webkit-overflow-scrolling:touch;
+    }
+    .mobile-tabs{display:grid}
+    aside [data-panel]{display:none}
+    aside[data-tab="looks"] [data-panel~="looks"],
+    aside[data-tab="adjust"] [data-panel~="adjust"],
+    aside[data-tab="light"] [data-panel~="light"],
+    aside[data-tab="export"] [data-panel~="export"]{display:block}
+    .card{border-radius:12px;padding:12px;margin-bottom:10px}
+    .presets{
+      display:flex;overflow-x:auto;gap:8px;scroll-snap-type:x mandatory;
+      padding-bottom:3px;-webkit-overflow-scrolling:touch;
+    }
+    .swatch{height:34px}
+    .preset{border-radius:9px;padding:8px 5px;min-width:118px;scroll-snap-align:start}
+    .preset .name{font-size:11px}
+    .preset .sub{display:none}
+    .segmented{gap:5px}
+    .seg-btn{font-size:11px;padding:9px 4px}
+    input[type=range]{min-height:30px}
+    .btns{position:sticky;bottom:0;background:linear-gradient(rgba(13,14,18,0),rgba(13,14,18,.96) 22%);padding-top:12px}
+    .foot{display:none}
+  }
+
+  .stage{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    min-height:420px;display:flex;align-items:center;justify-content:center;
+    position:sticky;top:18px;align-self:start;overflow:hidden;
+  }
+  @media (max-width:840px){ .stage{position:relative;top:0} }
+  .stage.empty{cursor:pointer}
+  .drop{text-align:center;color:var(--muted);padding:40px;pointer-events:none}
+  .drop .big{font-size:15px;color:var(--text);margin-bottom:6px}
+  #canvas{max-width:100%;max-height:74vh;display:none;border-radius:10px}
+  .compare-hint{
+    position:absolute;bottom:10px;left:10px;font-size:11.5px;color:var(--muted);
+    background:rgba(0,0,0,.45);padding:5px 9px;border-radius:8px;display:none;
+  }
+  .light-handle{
+    position:absolute;width:26px;height:26px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.9);
+    background:radial-gradient(circle at 40% 35%, rgba(255,244,214,.95), rgba(255,214,130,.35));
+    box-shadow:0 0 16px rgba(255,225,150,.75), inset 0 0 6px rgba(255,255,255,.6);
+    cursor:grab;display:none;transform:translate(-50%,-50%);touch-action:none;z-index:3;
+  }
+  .light-handle:active{cursor:grabbing}
+  .busy{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:4;
+    background:rgba(13,14,18,.26);backdrop-filter:blur(2px);
+  }
+  .busy.on{display:flex}
+  .spinner{
+    width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.22);
+    border-top-color:var(--accent);animation:spin .8s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  aside{display:flex;flex-direction:column;gap:16px}
+  .mobile-tabs{display:none;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+  .tab-btn{
+    border:1px solid var(--line);background:var(--panel-2);color:var(--muted);
+    border-radius:10px;padding:10px 4px;font-size:11.5px;font-weight:750;cursor:pointer;
+  }
+  .tab-btn.active{border-color:var(--accent);color:var(--text)}
+  @media (max-width:700px){ .mobile-tabs{display:grid} }
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px}
+  .card h2{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .preset{
+    background:var(--panel-2);border:1px solid var(--line);border-radius:11px;
+    padding:10px 8px;cursor:pointer;text-align:center;transition:.15s;
+  }
+  .preset:hover{border-color:#3a4051}
+  .preset.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .swatch{height:44px;border-radius:8px;margin-bottom:8px}
+  .sw-smart{background:linear-gradient(135deg,#fff2d0,#ffd9a0 45%,#e9b878)}
+  .sw-flash{background:linear-gradient(135deg,#dfe7e2,#c7d0cc 40%,#6f7a76)}
+  .sw-fil35 {background:linear-gradient(135deg,#f3d9a8,#caa06a 45%,#6d5a3e)}
+  .sw-warmfix{background:linear-gradient(135deg,#ffe9c9,#e8b57e 45%,#1e2a4a)}
+  .sw-g7x{background:linear-gradient(135deg,#ffffff,#dfe6ee 38%,#2a3140)}
+  .sw-pecra{background:radial-gradient(circle at 42% 38%,#f0e8dd 0 28%,#b9a58f 45%,#3a3f4a 90%)}
+  .sw-digicam{background:linear-gradient(135deg,#ffe7d6,#c9d8c5 45%,#8fa3b8)}
+  .sw-proclean{background:radial-gradient(circle at 42% 38%,#fbf4ea 0 34%,#cdbda9 60%,#7d7466 95%)}
+  .sw-digicam2{background:linear-gradient(135deg,#ffffff,#bcd0dd 42%,#20262e)}
+  .sw-dazz-dclassic{background:linear-gradient(135deg,#f6f0df,#b9c2ba 42%,#343945)}
+  .sw-dazz-instc{background:linear-gradient(135deg,#fff0d8,#d8b58c 48%,#566a76)}
+  .sw-dazz-cpm35{background:linear-gradient(135deg,#f3d4a2,#b98254 45%,#352f2d)}
+  .sw-dazz-d3d{background:linear-gradient(135deg,#e9f3ff,#9fb7d8 45%,#252b3a)}
+  .sw-dazz-nt16{background:linear-gradient(135deg,#d9ded0,#9a9f86 45%,#2f332d)}
+  .sw-dazz-classicu{background:linear-gradient(135deg,#f8fbff,#cdd8e0 42%,#303846)}
+  .preset .name{font-size:12px;font-weight:600}
+  .preset .sub{font-size:10.5px;color:var(--muted);margin-top:2px}
+  details.card{padding:0}
+  details.card summary{
+    list-style:none;cursor:pointer;padding:14px;display:flex;align-items:center;justify-content:space-between;
+    font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:700;
+  }
+  details.card summary::-webkit-details-marker{display:none}
+  details.card summary::after{content:"+";color:var(--accent);font-size:16px;line-height:1}
+  details.card[open] summary{border-bottom:1px solid var(--line)}
+  details.card[open] summary::after{content:"-"}
+  details.card .details-body{padding:14px}
+
+  .slider-row{margin-top:6px}
+  .slider-row label{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+  .slider-row label b{color:var(--text);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .grp{font-size:10.5px;letter-spacing:.9px;text-transform:uppercase;color:var(--accent);
+    opacity:.85;margin:16px 0 6px;border-top:1px solid var(--line);padding-top:13px}
+  .grp:first-child{border-top:0;margin-top:2px;padding-top:0}
+  #sliders .slider-row{margin-top:12px}
+  #sliders .slider-row b{font-variant-numeric:tabular-nums}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:12px}
+  .select-row{margin-top:12px}
+  .select-row label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+  select.text-input,
+  input.text-input{
+    width:100%;border:1px solid var(--line);background:var(--panel-2);color:var(--text);
+    border-radius:10px;padding:10px;font:inherit;
+  }
+  .switch{position:relative;width:38px;height:22px}
+  .switch input{opacity:0;width:0;height:0}
+  .track{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.15s;cursor:pointer}
+  .track::before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+  .switch input:checked + .track{background:var(--accent)}
+  .switch input:checked + .track::before{transform:translateX(16px)}
+  .segmented{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+  .seg-btn{
+    border:1px solid var(--line);background:var(--panel-2);color:var(--muted);
+    padding:9px 6px;border-radius:9px;font-size:12px;font-weight:650;cursor:pointer;transition:.15s;
+  }
+  .seg-btn:hover{border-color:#3a4051;color:var(--text)}
+  .seg-btn.active{border-color:var(--accent);color:var(--text);box-shadow:0 0 0 1px rgba(233,196,106,.45) inset}
+
+  .btns{display:flex;gap:8px}
+  button.act{
+    flex:1;border:1px solid var(--line);background:var(--panel-2);color:var(--text);
+    padding:11px;border-radius:11px;font-size:13px;cursor:pointer;transition:.15s;font-weight:600;
+  }
+  button.act:hover:not(:disabled){border-color:#3a4051}
+  button.act.primary{background:var(--accent);color:#241f10;border-color:var(--accent)}
+  button.act:disabled{opacity:.4;cursor:not-allowed}
+  .foot{color:var(--muted);font-size:11px;text-align:center;padding:8px 0 18px;line-height:1.5}
+  input[type=file]{display:none}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"></div>
+  <div><h1>Lumo <span class="tag">film presets</span></h1></div>
+  <div class="top-actions">
+    <button class="icon-btn" id="undoBtn" type="button" title="Undo" disabled>↶</button>
+    <button class="icon-btn" id="redoBtn" type="button" title="Redo" disabled>↷</button>
+    <button class="icon-btn" id="compareBtn" type="button" title="Hold for original" disabled>◐</button>
+  </div>
+  <div class="privacy"><span class="dot"></span> On-device · nothing uploaded</div>
+</header>
+
+<main>
+  <div class="stage empty" id="stage">
+    <div class="drop" id="drop">
+      <div class="big" id="dropMsg">Drop a photo here or click to choose</div>
+      <div>JPG / PNG / HEIC · processed locally in your browser</div>
+    </div>
+    <canvas id="canvas"></canvas>
+    <div class="light-handle" id="lightHandle" title="Drag to move the light"></div>
+    <div class="compare-hint" id="cmpHint"></div>
+    <div class="busy" id="busy"><div class="spinner"></div></div>
+  </div>
+
+  <aside data-tab="looks" id="editorTabs">
+    <div class="mobile-tabs">
+      <button class="tab-btn active" data-tab="looks" type="button">Looks</button>
+      <button class="tab-btn" data-tab="adjust" type="button">Adjust</button>
+      <button class="tab-btn" data-tab="light" type="button">AI Light</button>
+      <button class="tab-btn" data-tab="export" type="button">Export</button>
+    </div>
+
+    <div class="card" data-panel="looks">
+      <h2>Preset</h2>
+      <div class="presets" id="presets">
+        <div class="preset" data-preset="smart">
+          <div class="swatch sw-smart"></div>
+          <div class="name">Smart Light</div>
+          <div class="sub">relight · airy</div>
+        </div>
+        <div class="preset" data-preset="flash">
+          <div class="swatch sw-flash"></div>
+          <div class="name">Film Flash</div>
+          <div class="sub">punchy · cool</div>
+        </div>
+        <div class="preset" data-preset="fil35">
+          <div class="swatch sw-fil35"></div>
+          <div class="name">FIL 35</div>
+          <div class="sub">warm · grainy</div>
+        </div>
+        <div class="preset" data-preset="warmfix">
+          <div class="swatch sw-warmfix"></div>
+          <div class="name">Warm Fix</div>
+          <div class="sub">glare fix · natural</div>
+        </div>
+        <div class="preset" data-preset="g7x">
+          <div class="swatch sw-g7x"></div>
+          <div class="name">G7X Flash</div>
+          <div class="sub">flash · punchy</div>
+        </div>
+        <div class="preset" data-preset="pecra">
+          <div class="swatch sw-pecra"></div>
+          <div class="name">Pro Finish</div>
+          <div class="sub">AI depth · clean</div>
+        </div>
+        <div class="preset" data-preset="proclean">
+          <div class="swatch sw-proclean"></div>
+          <div class="name">Pro Clean</div>
+          <div class="sub">AI light · no blur</div>
+        </div>
+        <div class="preset" data-preset="digicam">
+          <div class="swatch sw-digicam"></div>
+          <div class="name">Digicam</div>
+          <div class="sub">soft · vibrant</div>
+        </div>
+        <div class="preset" data-preset="digicam2">
+          <div class="swatch sw-digicam2"></div>
+          <div class="name">Digicam 2</div>
+          <div class="sub">cool · crisp</div>
+        </div>
+      </div>
+    </div>
+
+    <details class="card" id="dazzCard" data-panel="looks">
+      <summary>Dazz-style filters</summary>
+      <div class="details-body">
+        <div class="presets" id="dazzPresets">
+          <div class="preset" data-preset="dazzDClassic">
+            <div class="swatch sw-dazz-dclassic"></div>
+            <div class="name">D Classic</div>
+            <div class="sub">soft flash</div>
+          </div>
+          <div class="preset" data-preset="dazzInstC">
+            <div class="swatch sw-dazz-instc"></div>
+            <div class="name">Inst C</div>
+            <div class="sub">instant warm</div>
+          </div>
+          <div class="preset" data-preset="dazzCPM35">
+            <div class="swatch sw-dazz-cpm35"></div>
+            <div class="name">CPM 35</div>
+            <div class="sub">35mm print</div>
+          </div>
+          <div class="preset" data-preset="dazzD3D">
+            <div class="swatch sw-dazz-d3d"></div>
+            <div class="name">D3D</div>
+            <div class="sub">cool pop</div>
+          </div>
+          <div class="preset" data-preset="dazzNT16">
+            <div class="swatch sw-dazz-nt16"></div>
+            <div class="name">NT16</div>
+            <div class="sub">muted film</div>
+          </div>
+          <div class="preset" data-preset="dazzClassicU">
+            <div class="swatch sw-dazz-classicu"></div>
+            <div class="name">Classic U</div>
+            <div class="sub">clean digicam</div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="card" data-panel="adjust">
+      <h2>Adjust</h2>
+      <div class="slider-row">
+        <label>Intensity <b id="intVal">75%</b></label>
+        <input type="range" id="intensity" min="0" max="100" value="75" />
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>AI Clarity <span style="opacity:.7">· deblur</span> <b id="aicVal">0</b></label>
+        <input type="range" id="aiclarity" min="0" max="100" value="0" />
+      </div>
+      <div class="toggle-row">
+        <span>Clean Output</span>
+        <label class="switch"><input type="checkbox" id="clean" checked><span class="track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span>AI Focus <span style="opacity:.7">· pop the subject</span></span>
+        <label class="switch"><input type="checkbox" id="focus"><span class="track"></span></label>
+      </div>
+    </div>
+
+    <div class="card" id="lightCard" data-panel="light">
+      <h2>AI Light</h2>
+      <div class="segmented" id="lightModes">
+        <button class="seg-btn" data-light-mode="natural" type="button">Natural</button>
+        <button class="seg-btn" data-light-mode="flash" type="button">Flash</button>
+        <button class="seg-btn" data-light-mode="studio" type="button">Studio</button>
+      </div>
+      <div class="slider-row">
+        <label>Amount <b id="lightAmountVal">0%</b></label>
+        <input type="range" id="lightAmount" min="0" max="100" value="0" />
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Softness <b id="lightSoftnessVal">50%</b></label>
+        <input type="range" id="lightSoftness" min="0" max="100" value="50" />
+      </div>
+      <div class="slider-row" style="margin-top:14px">
+        <label>Warmth <b id="lightWarmthVal">0</b></label>
+        <input type="range" id="lightWarmth" min="-100" max="100" value="0" />
+      </div>
+      <div class="slider-row" id="lightBackdropRow" style="margin-top:14px">
+        <label>Background <b id="lightBackdropVal">45%</b></label>
+        <input type="range" id="lightBackdrop" min="0" max="100" value="45" />
+      </div>
+    </div>
+
+    <div class="card" id="tuneCard" data-panel="adjust">
+      <h2>Advanced · <span id="tunePreset" style="color:var(--accent)">Smart Light</span></h2>
+      <div id="sliders"></div>
+    </div>
+
+    <div class="card" data-panel="export">
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="cameraBtn">Take photo</button>
+        <button class="act" id="chooseBtn">Library</button>
+      </div>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="presetBtn" disabled>Save preset</button>
+        <button class="act" id="installBtn" type="button">Install</button>
+      </div>
+      <div class="slider-row" style="margin-bottom:10px">
+        <label>Straighten <b id="straightVal">0°</b></label>
+        <input type="range" id="straighten" min="-10" max="10" step="0.1" value="0" />
+      </div>
+      <div class="segmented" id="cropModes">
+        <button class="seg-btn active" data-crop="free" type="button">Free</button>
+        <button class="seg-btn" data-crop="1:1" type="button">1:1</button>
+        <button class="seg-btn" data-crop="4:5" type="button">4:5</button>
+        <button class="seg-btn" data-crop="9:16" type="button">9:16</button>
+      </div>
+      <div class="select-row">
+        <label>Export size</label>
+        <select class="text-input" id="exportSize">
+          <option value="current">Edited size</option>
+          <option value="1080-square">Instagram 1:1</option>
+          <option value="1080-portrait">Instagram 4:5</option>
+          <option value="story">Story 9:16</option>
+        </select>
+      </div>
+      <div class="toggle-row">
+        <span>High quality export</span>
+        <label class="switch"><input type="checkbox" id="hqExport"><span class="track"></span></label>
+      </div>
+      <div class="btns">
+        <button class="act" id="resetBtn" disabled>Reset</button>
+        <button class="act primary" id="saveBtn" disabled>Save</button>
+      </div>
+    </div>
+    <div class="foot">
+      Original looks inspired by popular film-flash filters.<br>
+      Filmic tone curve, halation &amp; clumped grain — computed in linear light, on-device.
+    </div>
+  </aside>
+</main>
+
+<input type="file" id="file" accept="image/*,.heic,.heif,image/heic,image/heif" />
+<input type="file" id="cameraFile" accept="image/*" capture="environment" />
+
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
+const fileInput = $('#file'), cameraInput = $('#cameraFile'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint'), busy = $('#busy');
+
+/* ============================================================
+   Color science
+   - All light math (exposure, white balance, relight, bloom,
+     halation) happens in LINEAR space: sRGB is decoded first.
+   - Tone mapping uses a filmic curve with a real toe & shoulder
+     (ACES-style rational fit) instead of contrast-around-0.5,
+     which is how film emulation tools actually shape tone.
+   ============================================================ */
+
+// sRGB byte -> linear
+const S2L = new Float32Array(256);
+for(let i=0;i<256;i++){
+  const c=i/255;
+  S2L[i] = c<=0.04045 ? c/12.92 : Math.pow((c+0.055)/1.055, 2.4);
+}
+function lin2srgb(v){
+  v = v<0?0 : v>1?1 : v;
+  return v<=0.0031308 ? v*12.92 : 1.055*Math.pow(v,1/2.4)-0.055;
+}
+
+/* Filmic tone LUT: maps linear [0,2) -> display byte.
+   contrast : power around mid-grey 0.18 (log-space contrast)
+   filmic   : blend toward ACES toe/shoulder curve
+   lift     : faded blacks (film base + fog), display space
+   brightness/highlights/shadows/blackPoint : iPhone-Photos-style
+   sliders, applied in perceptual (display) space where those
+   sliders actually operate. 0.10 ≈ "+10" on the Photos scale. */
+const TONE_N = 4096, TONE_SCALE = 2048;
+function buildToneLUT(contrast, filmic, lift, brightness=0, highlights=0, shadows=0, blackPoint=0, whites=0, hlProtect=0.85){
+  const t = new Uint8Array(TONE_N);
+  for(let i=0;i<TONE_N;i++){
+    let x = i/TONE_SCALE;
+    if(contrast>1) x = 0.18*Math.pow(x/0.18, contrast);   // filmic, log-space
+    const f = (x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14);   // ACES approx
+    const y = Math.min(x,1)*(1-filmic) + Math.min(f,1)*filmic;
+
+    let s = lin2srgb(y);                                   // -> perceptual
+    if(contrast<1)                                         // LR-style: S-curve
+      s += (1-contrast)*0.35*Math.sin(2*Math.PI*s);        // pinned endpoints
+    if(brightness) s = Math.pow(s, 1/(1+brightness));      // midtone lift
+    if(shadows){                                           // lift low end
+      const w = Math.pow(Math.max(0,1-s/0.6),2);
+      s += shadows*w*(0.6-s);
+    }
+    if(highlights){                                        // recover glare;
+      let w = Math.pow(Math.max(0,(s-0.3)/0.7),2);         // tapers near white
+      w *= 1-hlProtect*Math.pow(Math.min(1,Math.max(0,(s-0.88)/0.12)),2);
+      s -= highlights*w*(s-0.3)*0.7;                       // (hlProtect: LR
+    }                                                      // pins white ~0.85,
+                                                           // Photos-style ~0.25)
+    if(whites){                                            // white point
+      s *= 1 + whites*0.35*Math.pow(Math.max(0,(s-0.4)/0.6),1.5);
+    }
+    if(blackPoint){                                        // black level:
+      const b = blackPoint*0.45;                           // + deepens,
+      s = Math.max(0,(s-b)/(1-b));                         // - lifts
+    }
+    s = lift + s*(1-lift);
+    t[i] = Math.round(Math.min(1,Math.max(0,s))*255);
+  }
+  return t;
+}
+
+/* ============================================================
+   Presets — parameter sets for one pipeline.
+   exposure   : stops, applied in linear
+   rGain/gGain/bGain : white-balance channel gains (linear)
+   contrast/filmic/lift : tone curve (see buildToneLUT)
+   bloom      : screen-ish highlight glow (linear add)
+   hal        : halation — red/orange bleed from linear highlights
+   hotspot    : center flash falloff (Film Flash)
+   relight    : draggable light strength (Smart Light)
+   ============================================================ */
+const PRESETS = {
+  smart: {   // Smart Light — relight + bright, airy warmth
+    exposure:0.24, rGain:1.04, gGain:1.00, bGain:0.95,
+    contrast:1.03, filmic:0.30, lift:0.03, sat:1.08,
+    bloom:0.24, bloomThresh:0.62, hal:0.03,
+    grain:0.07, vignette:0.05, vignetteWarm:false, hotspot:0,
+    relight:0.42, relightWarm:0.08, lightRadius:0.68, falloff:0.10, dirLight:0.15,
+    shadowTint:[6,4,-4], highlightTint:[8,5,-3]
+  },
+  flash: {   // Film Flash — direct-flash hotspot, cool green shadows
+    exposure:0.18, rGain:0.97, gGain:1.02, bGain:1.06,
+    contrast:1.14, filmic:0.40, lift:0.035, sat:0.96,
+    bloom:0.12, bloomThresh:0.72, hal:0.02,
+    grain:0.18, vignette:0.24, vignetteWarm:false, hotspot:0.28,
+    relight:0.04, relightWarm:-0.04, lightRadius:0.44, falloff:0.68, dirLight:0.05, bgFalloff:0.22,
+    shadowTint:[-5,5,2], highlightTint:[4,6,3]
+  },
+  fil35: {   // FIL 35 — warm 35mm, faded blacks, halation, heavy grain
+    exposure:0.08, rGain:1.10, gGain:1.00, bGain:0.88,
+    contrast:1.10, filmic:0.45, lift:0.10, sat:1.05,
+    bloom:0.12, bloomThresh:0.64, hal:0.20,
+    grain:0.42, vignette:0.18, vignetteWarm:true, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[10,3,-10], highlightTint:[12,7,-6]
+  },
+  warmfix: { // Warm Fix — Photos-app-style corrective recipe:
+             // Brightness +10, Contrast +5, Highlights -35 (glare),
+             // Shadows +5 (faces), Black Point +10 (navy backdrop),
+             // Warmth +10, Saturation +5, skin tone untouched
+    exposure:0, rGain:1.05, gGain:1.00, bGain:0.94,
+    contrast:1.05, filmic:0, lift:0, sat:1.05,
+    brightness:0.10, highlights:0.35, shadows:0.05, blackPoint:0.10, hlProtect:0.25,
+    bloom:0, bloomThresh:0.65, hal:0,
+    grain:0.06, vignette:0.10, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  g7x: {     // G7X Flash — clean digicam direct flash:
+             // strong center hotspot, hard-clipped flash whites
+             // (low filmic = digital clipping, not film roll-off),
+             // vivid saturation, cool-neutral WB, deep blacks,
+             // fine digital noise instead of film grain clumps
+    exposure:0.15, rGain:0.99, gGain:0.98, bGain:1.04,
+    contrast:1.15, filmic:0.15, lift:0, sat:1.12,
+    brightness:0.05, blackPoint:0.08,
+    bloom:0.14, bloomThresh:0.78, hal:0,
+    grain:0.08, grainFine:true, vignette:0.22, vignetteWarm:false, hotspot:0.38,
+    relight:0.03, relightWarm:-0.03, lightRadius:0.38, falloff:0.72, dirLight:0.04, bgFalloff:0.24,
+    shadowTint:[-4,0,6], highlightTint:[0,2,4]
+  },
+  pecra: {   // Pro Finish — Pecra-style pro camera look:
+             // on-device AI separates subject from background, then
+             // background gets bokeh + dim, subject gets clarity +
+             // gentle relight. Falls back to a center-focus mask
+             // when segmentation isn't available (file:// pages).
+    exposure:0.06, rGain:1.01, gGain:1.00, bGain:0.99,
+    contrast:1.06, filmic:0.30, lift:0, sat:1.04,
+    brightness:0.04, highlights:0.12, blackPoint:0.04,
+    bloom:0.12, bloomThresh:0.72, hal:0,
+    grain:0.04, grainFine:true, vignette:0.12, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    depth:{ bokeh:0.85, dim:0.15, lift:0.10, clarity:0.50 },
+    shadowTint:[0,0,0], highlightTint:[2,2,0]
+  },
+  proclean: { // Pro Clean — Pro Finish without background blur.
+              // AI still separates subject; background is only
+              // dimmed slightly while the subject gets clarity +
+              // relight. Sharp everywhere, just depth-shaded.
+    exposure:0.06, rGain:1.01, gGain:1.00, bGain:0.99,
+    contrast:1.06, filmic:0.30, lift:0, sat:1.05, vibrance:0.10,
+    brightness:0.04, highlights:0.12, blackPoint:0.04,
+    bloom:0.10, bloomThresh:0.72, hal:0,
+    grain:0.04, grainFine:true, vignette:0.10, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    depth:{ bokeh:0, dim:0.12, lift:0.12, clarity:0.60 },
+    shadowTint:[0,0,0], highlightTint:[2,2,0]
+  },
+  digicam2:{ // Digicam 2 — bright, cool, high-contrast LR recipe:
+             // Exp +0.50, Contrast +20, Highlights -20, Shadows -20,
+             // Whites +35, Blacks -25, Temp -6, Tint +5, Vibrance +15,
+             // Texture -10 + Clarity +8 (net mild soften), Grain +18,
+             // Vignette -10 (mild dark corners)
+    exposure:0.50, rGain:0.97, gGain:0.985, bGain:1.03,
+    contrast:1.20, filmic:0.20, lift:0, sat:1.0, vibrance:0.15,
+    highlights:0.20, shadows:-0.20, blackPoint:0.25, whites:0.35,
+    soften:0.05,
+    bloom:0, bloomThresh:0.72, hal:0,
+    grain:0.22, vignette:0.08, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  digicam: { // Digicam — Lightroom mobile recipe port:
+             // Exposure +0.20, Contrast -10, Highlights -35,
+             // Shadows +25, Whites +10, Blacks +5 (lifted),
+             // Temp +4, Tint +5, Vibrance +18, Saturation +5,
+             // Texture -10 + Clarity -15 (-> soften), Dehaze -5
+             // (-> slight lift), Grain ~15 (clumped film-style)
+    exposure:0.20, rGain:1.02, gGain:0.985, bGain:0.98,
+    contrast:0.93, filmic:0.15, lift:0.02, sat:1.05, vibrance:0.18,
+    highlights:0.35, shadows:0.25, blackPoint:-0.05, whites:0.10,
+    soften:0.13,
+    bloom:0, bloomThresh:0.70, hal:0,
+    grain:0.18, vignette:0, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  dazzDClassic: {
+    exposure:0.12, rGain:1.01, gGain:1.00, bGain:0.99,
+    contrast:1.08, filmic:0.25, lift:0.05, sat:0.98,
+    brightness:0.03, highlights:0.10, bloom:0.08, bloomThresh:0.74, hal:0.01,
+    grain:0.12, grainFine:true, vignette:0.16, vignetteWarm:false, hotspot:0.22,
+    relight:0.04, relightWarm:-0.02, lightRadius:0.46, falloff:0.62, dirLight:0.04, bgFalloff:0.18,
+    shadowTint:[-3,3,5], highlightTint:[3,2,1]
+  },
+  dazzInstC: {
+    exposure:0.08, rGain:1.07, gGain:1.00, bGain:0.93,
+    contrast:1.02, filmic:0.35, lift:0.08, sat:0.98,
+    brightness:0.04, highlights:0.12, bloom:0.10, bloomThresh:0.68, hal:0.03,
+    grain:0.16, vignette:0.10, vignetteWarm:true, hotspot:0.08,
+    relight:0.14, relightWarm:0.10, lightRadius:0.72, falloff:0.16, dirLight:0.12, bgFalloff:0.12,
+    shadowTint:[8,3,-4], highlightTint:[9,5,-2]
+  },
+  dazzCPM35: {
+    exposure:0.05, rGain:1.09, gGain:1.00, bGain:0.90,
+    contrast:1.12, filmic:0.45, lift:0.09, sat:1.04,
+    bloom:0.10, bloomThresh:0.65, hal:0.16,
+    grain:0.28, vignette:0.16, vignetteWarm:true, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[10,4,-9], highlightTint:[12,7,-4]
+  },
+  dazzD3D: {
+    exposure:0.14, rGain:0.97, gGain:1.00, bGain:1.06,
+    contrast:1.16, filmic:0.22, lift:0.02, sat:1.08,
+    brightness:0.03, blackPoint:0.06, bloom:0.08, bloomThresh:0.78, hal:0,
+    grain:0.08, grainFine:true, vignette:0.18, vignetteWarm:false, hotspot:0.30,
+    relight:0.03, relightWarm:-0.07, lightRadius:0.35, falloff:0.72, dirLight:0.04, bgFalloff:0.24,
+    shadowTint:[-4,0,7], highlightTint:[0,2,5]
+  },
+  dazzNT16: {
+    exposure:0.02, rGain:1.02, gGain:1.00, bGain:0.96,
+    contrast:0.98, filmic:0.55, lift:0.10, sat:0.82, vibrance:0.05,
+    soften:0.06, bloom:0.06, bloomThresh:0.70, hal:0.08,
+    grain:0.30, vignette:0.14, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[3,5,-5], highlightTint:[8,6,-3]
+  },
+  dazzClassicU: {
+    exposure:0.18, rGain:0.98, gGain:1.00, bGain:1.04,
+    contrast:1.10, filmic:0.15, lift:0, sat:1.05,
+    brightness:0.03, highlights:0.18, blackPoint:0.05,
+    bloom:0.06, bloomThresh:0.78, hal:0,
+    grain:0.05, grainFine:true, vignette:0.08, vignetteWarm:false, hotspot:0.18,
+    relight:0.02, relightWarm:-0.04, lightRadius:0.42, falloff:0.60, dirLight:0.04, bgFalloff:0.20,
+    shadowTint:[-3,0,5], highlightTint:[0,1,3]
+  }
+};
+
+/* ============================================================
+   State & buffers
+   Mobile keeps the edit/export buffer capped so analog effects
+   do not overwhelm phone browsers. A smaller buffer drives live
+   preview while dragging sliders / the light.
+   ============================================================ */
+const DEFAULT_INTENSITY = 0.75;
+const state = {
+  intensity:DEFAULT_INTENSITY,
+  focus:false,
+  aiClarity:0,
+  clean:true,
+  light:{x:0.5, y:0.28},
+  lightMode:'natural',
+  lightAmount:0,
+  lightSoftness:50,
+  lightWarmth:0,
+  lightBackdrop:45,
+  cropMode:'free',
+  straighten:0,
+  exportSize:'current',
+  hqExport:false
+};
+/* Global AI Focus: minimal-blur subject pop layered on any preset */
+const FOCUS = { bokeh:0.15, dim:0.10, lift:0.10, clarity:0.40 };
+
+/* Live-editable working copy of the selected preset. Every field
+   below is exposed as a drag slider; process() reads `params`,
+   not the frozen PRESETS entry, so edits apply in real time. */
+const SLIDERS = [
+  ['Light'],
+  ['exposure','Exposure',-1,1,0.01],
+  ['brightness','Brightness',-0.5,0.5,0.01],
+  ['contrast','Contrast',0.5,1.6,0.01],
+  ['highlights','Highlights',-0.6,0.6,0.01],
+  ['shadows','Shadows',-0.6,0.6,0.01],
+  ['whites','Whites',-0.6,0.6,0.01],
+  ['blackPoint','Blacks (deepen)',-0.4,0.6,0.01],
+  ['lift','Fade (lift blacks)',0,0.3,0.01],
+  ['filmic','Filmic curve',0,1,0.05],
+  ['White balance'],
+  ['rGain','Red',0.8,1.2,0.005],
+  ['gGain','Green',0.8,1.2,0.005],
+  ['bGain','Blue',0.8,1.2,0.005],
+  ['Color'],
+  ['sat','Saturation',0,2,0.05],
+  ['vibrance','Vibrance',0,0.6,0.01],
+  ['Effects'],
+  ['soften','Soften (−texture)',0,0.6,0.01],
+  ['bloom','Bloom',0,1,0.05],
+  ['bloomThresh','Bloom threshold',0.3,0.95,0.01],
+  ['hal','Halation',0,0.6,0.01],
+  ['grain','Grain',0,1,0.02],
+  ['vignette','Vignette',0,0.6,0.01],
+];
+const SKEYS = SLIDERS.filter(s=>s.length>1);
+const paramDefault = k =>
+  (k==='rGain'||k==='gGain'||k==='bGain'||k==='sat'||k==='contrast') ? 1 :
+  (k==='lightRadius') ? 0.5 : 0;
+function clonePreset(name){
+  const p={...PRESETS[name]};                 // depth/tint arrays shared (never mutated)
+  for(const [k] of SKEYS) if(p[k]===undefined) p[k]=paramDefault(k);
+  return p;
+}
+let params = clonePreset('smart');
+let currentPreset = 'smart';
+let fullBuf = null, smallBuf = null, srcImage = null, sourceImage = null;
+let holding = false, fullTimer = null, renderSeq = 0, historyLock = false;
+let installPrompt = null;
+const tmpCanvas = document.createElement('canvas');
+const CUSTOM_PRESET_KEY = 'lumo.customPresets.v1';
+const CUSTOM_PRESET_STATE = {};
+const CUSTOM_PRESET_NAMES = {};
+const undoStack = [], redoStack = [];
+
+const lerp = (a,b,t)=> a+(b-a)*t;
+
+/* Progressive-downscale blur (smoother than one big jump) */
+function makeBlur(imgData, w, h, div){
+  const src = document.createElement('canvas'); src.width=w; src.height=h;
+  src.getContext('2d').putImageData(imgData,0,0);
+  let cur = src, cw = w, ch = h;
+  while(cw > w/div && cw > 2){
+    const nw = Math.max(1,cw>>1), nh = Math.max(1,ch>>1);
+    const c = document.createElement('canvas'); c.width=nw; c.height=nh;
+    const cc = c.getContext('2d'); cc.imageSmoothingEnabled=true;
+    cc.drawImage(cur,0,0,nw,nh);
+    cur=c; cw=nw; ch=nh;
+  }
+  const outC = document.createElement('canvas'); outC.width=w; outC.height=h;
+  const oc = outC.getContext('2d'); oc.imageSmoothingEnabled=true;
+  oc.drawImage(cur,0,0,w,h);
+  return oc.getImageData(0,0,w,h);
+}
+
+/* Clumped grain: value noise at half resolution, bilinearly
+   upsampled, plus fine jitter — film grain clumps, it isn't
+   per-pixel white noise. */
+function makeGrain(w,h){
+  const gw=(w>>1)+2, gh=(h>>1)+2;
+  const coarse = new Float32Array(gw*gh);
+  for(let i=0;i<coarse.length;i++) coarse[i]=Math.random()-0.5;
+  const g = new Float32Array(w*h);
+  for(let y=0;y<h;y++){
+    const fy=y/2, y0=fy|0, ty=fy-y0, r0=y0*gw, r1=(y0+1)*gw;
+    for(let x=0;x<w;x++){
+      const fx=x/2, x0=fx|0, tx=fx-x0;
+      const v=(coarse[r0+x0]*(1-tx)+coarse[r0+x0+1]*tx)*(1-ty)
+             +(coarse[r1+x0]*(1-tx)+coarse[r1+x0+1]*tx)*ty;
+      g[y*w+x]=v + (Math.random()-0.5)*0.35;
+    }
+  }
+  return g;
+}
+
+function makeNoise(n){          // fine per-pixel noise (digital sensor)
+  const f=new Float32Array(n);
+  for(let i=0;i<n;i++) f[i]=Math.random()-0.5;
+  return f;
+}
+
+/* Center-focus fallback mask for depth presets when AI
+   segmentation isn't available: soft ellipse, subject-framed. */
+function makeRadial(w,h){
+  const f=new Float32Array(w*h);
+  const cx=w/2, cy=h*0.42, rx=w*0.42, ry=h*0.5;
+  for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+    const dx=(x-cx)/rx, dy=(y-cy)/ry;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    f[y*w+x]=d<=0.7?1:Math.max(0,1-(d-0.7)/0.6);
+  }
+  return f;
+}
+
+function aspectForMode(mode){
+  return mode==='1:1' ? 1 : mode==='4:5' ? 4/5 : mode==='9:16' ? 9/16 : null;
+}
+function sourceRectForAspect(w,h,mode){
+  const ratio=aspectForMode(mode);
+  if(!ratio) return {x:0,y:0,w,h};
+  if(w/h>ratio){
+    const nw=h*ratio;
+    return {x:(w-nw)/2,y:0,w:nw,h};
+  }
+  const nh=w/ratio;
+  return {x:0,y:(h-nh)/2,w,h:nh};
+}
+function buildSourceImageData(img){
+  const MAX_MOBILE=1600;
+  const rect=sourceRectForAspect(img.naturalWidth,img.naturalHeight,state.cropMode);
+  const scale=Math.min(1,MAX_MOBILE/Math.max(rect.w,rect.h));
+  const w=Math.max(1,Math.round(rect.w*scale)), h=Math.max(1,Math.round(rect.h*scale));
+  const cropCanvas=document.createElement('canvas'); cropCanvas.width=w; cropCanvas.height=h;
+  const cropCtx=cropCanvas.getContext('2d'); cropCtx.imageSmoothingEnabled=true;
+  cropCtx.drawImage(img,rect.x,rect.y,rect.w,rect.h,0,0,w,h);
+  const angle=state.straighten*Math.PI/180;
+  if(Math.abs(angle)>0.001){
+    const out=document.createElement('canvas'); out.width=w; out.height=h;
+    const outCtx=out.getContext('2d'); outCtx.imageSmoothingEnabled=true;
+    outCtx.translate(w/2,h/2);
+    outCtx.rotate(angle);
+    outCtx.scale(1+Math.abs(angle)*0.9,1+Math.abs(angle)*0.9);
+    outCtx.drawImage(cropCanvas,-w/2,-h/2);
+    return outCtx.getImageData(0,0,w,h);
+  }
+  return cropCtx.getImageData(0,0,w,h);
+}
+
+function buildBuffers(imgData){
+  const w=imgData.width, h=imgData.height;
+  return {
+    img: imgData,
+    blurA: makeBlur(imgData,w,h,8),    // bloom source
+    blurB: makeBlur(imgData,w,h,16),   // halation source (wider)
+    blurC: makeBlur(imgData,w,h,2),    // ~1px blur (AI Clarity unsharp)
+    grain: makeGrain(w,h),             // clumped film grain
+    noise: makeNoise(w*h),             // fine digital noise
+    radial: makeRadial(w,h)            // depth fallback mask
+  };                                   // .mask added by segmentation
+}
+
+/* ============================================================
+   Core pipeline (one pass per pixel)
+   decode sRGB -> exposure/WB -> relight/hotspot -> bloom +
+   halation (all linear) -> filmic tone LUT -> saturation ->
+   split-tone -> vignette -> luma-weighted clumped grain
+   ============================================================ */
+function process(buf){
+  const img=buf.img, w=img.width, h=img.height, d=img.data;
+  const p=params, amt=state.intensity;
+  const cleanFx = state.clean ? 0.55 : 1;
+
+  const expGain=Math.pow(2, p.exposure*amt);
+  const rG=lerp(1,p.rGain,amt), gG=lerp(1,p.gGain,amt), bG=lerp(1,p.bGain,amt);
+  const sat=lerp(1,p.sat,amt*(state.clean?0.9:1));
+  const tone=buildToneLUT(lerp(1,p.contrast,amt), p.filmic*amt, p.lift*amt,
+    (p.brightness||0)*amt, (p.highlights||0)*amt, (p.shadows||0)*amt,
+    (p.blackPoint||0)*amt, (p.whites||0)*amt,
+    p.hlProtect!==undefined?p.hlProtect:0.85);
+
+  const bloomAmt=(p.bloom||0)*amt*cleanFx, halAmt=(p.hal||0)*amt*cleanFx;
+  const bloomT=p.bloomThresh!==undefined?p.bloomThresh:0.65, bloomInv=1/(1-bloomT);
+  const rel=(p.relight||0)*amt*(state.clean?0.90:1);
+  const hot=(p.hotspot||0)*amt*(state.clean?0.82:1);
+  const relWarm=p.relightWarm||0;
+  // Depth: preset's own depth (scaled by intensity), else the
+  // global AI Focus layer (fixed strength, works on any preset)
+  const usePresetDepth = p.depth && amt>0;
+  const depth = usePresetDepth ? p.depth : (state.focus ? FOCUS : null);
+  const depthAmt = usePresetDepth ? amt : 1;
+  const mask=depth?(buf.mask||buf.radial):null;
+  const soften=(p.soften||0)*amt*(state.clean?0.85:1);            // negative texture/clarity
+  const vib=(p.vibrance||0)*amt*(state.clean?0.9:1);
+  const doBloom=bloomAmt>0.004;
+  const needDir=(rel+hot>0.001)&&(p.dirLight||0)>0;
+  const bA=(doBloom||depth||soften>0.004||needDir)?buf.blurA.data:null;
+  const bB=halAmt>0.004?buf.blurB.data:null;
+
+  const stC=p.shadowTint||[0,0,0], hlC=p.highlightTint||[0,0,0];
+  const cx=w/2, cy=h/2, maxD=Math.hypot(cx,cy);
+  const vig=(p.vignette||0)*amt*(state.clean?0.72:1);
+
+  // Shared light source: relight + flash hotspot both emanate from
+  // the draggable light point; radius, warmth, falloff shape and
+  // directional shading are adjustable
+  const lightOn=(rel+hot)>0.001;
+  const fMix=p.falloff||0, dirL=p.dirLight||0;
+  const lightInv=1/(2*Math.pow((p.lightRadius||0.5)*Math.max(w,h),2));
+  const lx=state.light.x*w, ly=state.light.y*h;
+  const maskFlash=hot>0.001?(buf.mask||buf.radial):null;
+
+  const grain=p.grainFine?buf.noise:buf.grain;
+  const gAmt=(p.grain||0)*amt*45*(state.clean?0.45:1);
+
+  // AI Clarity: noise-gated small-radius unsharp, subject-weighted
+  // when the AI mask exists (repair layer — independent of preset)
+  const aiC=state.aiClarity*(state.clean?1.05:1.6);
+  const bC=aiC>0.004?buf.blurC.data:null;
+  const aiMask=bC?buf.mask:null;
+
+  const out=new ImageData(w,h), o=out.data;
+
+  for(let y=0;y<h;y++){
+    for(let x=0;x<w;x++){
+      const idx=y*w+x, i=idx*4;
+      // decode + exposure + white balance (linear)
+      let r=S2L[d[i]]*expGain*rG,
+          g=S2L[d[i+1]]*expGain*gG,
+          b=S2L[d[i+2]]*expGain*bG;
+
+      // AI Clarity: recover detail lost to blur. Differences vs a
+      // ~1px blur are boosted; a soft noise gate keeps flat areas
+      // (sensor noise) from being amplified into crunch.
+      if(bC){
+        const w2=aiC*(aiMask?0.35+0.65*aiMask[idx]:1);
+        let dr=r-S2L[bC[i]]  *expGain*rG,
+            dg=g-S2L[bC[i+1]]*expGain*gG,
+            db=b-S2L[bC[i+2]]*expGain*bG;
+        r+=dr*w2*(dr*dr/(dr*dr+2e-4));
+        g+=dg*w2*(dg*dg/(dg*dg+2e-4));
+        b+=db*w2*(db*db/(db*db+2e-4));
+        if(r<0)r=0; if(g<0)g=0; if(b<0)b=0;
+      }
+      // Depth (Pro Finish): background bokeh + dim, subject
+      // clarity (unsharp vs blur) + relight — all linear space
+      if(mask){
+        const m=mask[idx], inv=1-m;
+        const br=S2L[bA[i]]*expGain*rG,
+              bg=S2L[bA[i+1]]*expGain*gG,
+              bb=S2L[bA[i+2]]*expGain*bG;
+        const t=inv*depth.bokeh*depthAmt;
+        r+=(br-r)*t; g+=(bg-g)*t; b+=(bb-b)*t;
+        const cl=depth.clarity*m*depthAmt;
+        r+=(r-br)*cl; g+=(g-bg)*cl; b+=(b-bb)*cl;
+        const lg=1+(depth.lift*m-depth.dim*inv)*depthAmt;
+        r*=lg; g*=lg; b*=lg;
+        if(r<0)r=0; if(g<0)g=0; if(b<0)b=0;   // clarity can undershoot
+      }
+      // Soften: pull toward blur (LR negative texture/clarity glow)
+      if(soften>0.004){
+        r+=(S2L[bA[i]]  *expGain*rG - r)*soften;
+        g+=(S2L[bA[i+1]]*expGain*gG - g)*soften;
+        b+=(S2L[bA[i+2]]*expGain*bG - b)*soften;
+      }
+      // Light source: relight + hotspot from the draggable point.
+      // Fill-light behavior: full gain in shadows/mids, eased near
+      // white so added light doesn't clip existing highlights.
+      if(lightOn){
+        const dx=x-lx, dy=y-ly, d2=dx*dx+dy*dy, q=d2*lightInv;
+        // falloff shape: gaussian (soft) -> inverse-square-ish (hard)
+        let fall=Math.exp(-q);
+        if(fMix>0){ const iv=1/((1+1.6*q)*(1+1.6*q)); fall+=(iv-fall)*fMix; }
+        const m2=maskFlash?maskFlash[idx]:1;
+        const eR=rel*fall,
+              eH=hot*fall*(maskFlash?0.35+0.65*m2:1);  // flash favors subject
+        let e=eR+eH;
+        if(e>0.001){
+          // directional shading: luma gradient of the blurred image
+          // as a surface-slope proxy; slopes facing the light catch
+          // more of it, slopes facing away fall into shadow
+          if(dirL>0){
+            const w4=w*4;
+            const xm=x>2?i-12:i,    xp=x<w-3?i+12:i;
+            const ym=y>2?i-3*w4:i,  yp=y<h-3?i+3*w4:i;
+            const gxv=(0.2126*S2L[bA[xp]]+0.7152*S2L[bA[xp+1]]+0.0722*S2L[bA[xp+2]])
+                     -(0.2126*S2L[bA[xm]]+0.7152*S2L[bA[xm+1]]+0.0722*S2L[bA[xm+2]]);
+            const gyv=(0.2126*S2L[bA[yp]]+0.7152*S2L[bA[yp+1]]+0.0722*S2L[bA[yp+2]])
+                     -(0.2126*S2L[bA[ym]]+0.7152*S2L[bA[ym+1]]+0.0722*S2L[bA[ym+2]]);
+            const dot=(gxv*-dx+gyv*-dy)/(Math.sqrt(d2)+1);
+            e*=Math.min(2.2,Math.max(-0.4,1+dirL*10*dot));
+          }
+          const wf=eR/(eR+eH);                  // warmth rides relight share
+          const Lp=0.2126*r+0.7152*g+0.0722*b;
+          const protect=state.clean ? 0.25+0.75/(1+2.2*Lp) : 0.35+0.65/(1+1.4*Lp);
+          const skinish=state.clean && r>g*1.04 && g>b*1.03 && Lp>0.05 && Lp<0.85;
+          e*=protect*(skinish?0.88:1);
+          const gS=1+e, wm=relWarm*e*(0.35+0.65*wf);
+          r*=gS*(1+wm); g*=gS; b*=gS*(1-wm*0.8);
+        }
+        // flash distance falloff: with an AI mask the background
+        // drops off the way it does under real direct flash
+        if(maskFlash){
+          const bgD=1-(p.bgFalloff!==undefined?p.bgFalloff:0.22)*hot*(1-m2);
+          r*=bgD; g*=bgD; b*=bgD;
+        }
+      }
+      // Bloom: thresholded blurred highlights, added as light
+      if(doBloom){
+        r+=Math.max(0,S2L[bA[i]]  -bloomT)*bloomInv*bloomAmt;
+        g+=Math.max(0,S2L[bA[i+1]]-bloomT)*bloomInv*bloomAmt;
+        b+=Math.max(0,S2L[bA[i+2]]-bloomT)*bloomInv*bloomAmt;
+      }
+      // Halation: red-orange bleed from wide-blurred linear luma
+      if(bB){
+        const lum=0.2126*S2L[bB[i]]+0.7152*S2L[bB[i+1]]+0.0722*S2L[bB[i+2]];
+        const glow=Math.max(0,lum-0.5)*2;
+        r+=glow*halAmt; g+=glow*halAmt*0.28; b+=glow*halAmt*0.06;
+      }
+
+      // filmic tone map (toe + shoulder) -> display bytes
+      let R=tone[r>=2?TONE_N-1:(r*TONE_SCALE)|0],
+          G=tone[g>=2?TONE_N-1:(g*TONE_SCALE)|0],
+          B=tone[b>=2?TONE_N-1:(b*TONE_SCALE)|0];
+
+      const L=0.2126*R+0.7152*G+0.0722*B;
+      if(sat!==1){ R=L+(R-L)*sat; G=L+(G-L)*sat; B=L+(B-L)*sat; }
+      // Vibrance: boost muted colors, protect saturated ones/skin
+      if(vib>0){
+        const mx=R>G?(R>B?R:B):(G>B?G:B), mn=R<G?(R<B?R:B):(G<B?G:B);
+        const vs=1+vib*(1-(mx-mn)/255);
+        R=L+(R-L)*vs; G=L+(G-L)*vs; B=L+(B-L)*vs;
+      }
+
+      // split toning
+      const Ln=L/255;
+      const swt=Math.max(0,1-Ln*1.6), hwt=Math.max(0,Ln*1.4-0.4);
+      R+=(stC[0]*swt+hlC[0]*hwt)*amt;
+      G+=(stC[1]*swt+hlC[1]*hwt)*amt;
+      B+=(stC[2]*swt+hlC[2]*hwt)*amt;
+
+      // vignette
+      if(vig>0){
+        const dd=Math.hypot(x-cx,y-cy)/maxD;
+        const v=1-vig*Math.pow(Math.max(0,dd-0.35)/0.65,2);
+        R*=v; G*=v; B*=v;
+        if(p.vignetteWarm) R+=(1-v)*8;
+      }
+      // grain: clumped, strongest in midtones (exposure-dependent)
+      if(gAmt>0){
+        const n=grain[idx]*gAmt*(4*Ln*(1-Ln)+0.15);
+        R+=n; G+=n; B+=n;
+      }
+
+      o[i]  =R<0?0:R>255?255:R;
+      o[i+1]=G<0?0:G>255?255:G;
+      o[i+2]=B<0?0:B>255?255:B;
+      o[i+3]=255;
+    }
+  }
+  return out;
+}
+
+/* fast=true renders the small buffer and scales it up — used
+   while dragging; a full-res render follows shortly after. */
+function render(fast){
+  const buf = fast ? smallBuf : fullBuf;
+  if(!buf) return;
+  const out = process(buf);
+  if(fast && buf!==fullBuf){
+    tmpCanvas.width=out.width; tmpCanvas.height=out.height;
+    tmpCanvas.getContext('2d').putImageData(out,0,0);
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(tmpCanvas,0,0,canvas.width,canvas.height);
+  }else{
+    ctx.putImageData(out,0,0);
+  }
+}
+function setBusy(on){ busy.classList.toggle('on', !!on); }
+function renderPreview(){
+  render(true);
+  clearTimeout(fullTimer);
+  const seq=++renderSeq;
+  fullTimer=setTimeout(()=>{
+    setBusy(true);
+    requestAnimationFrame(()=>{
+      if(seq===renderSeq) render(false);
+      setBusy(false);
+    });
+  },360);
+}
+function showOriginal(){ if(srcImage) ctx.putImageData(srcImage,0,0); }
+
+/* ---------- Image loading ---------- */
+const isHeic = f => /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
+
+/* HEIC decoder (heic2any, WASM) — loaded lazily, only if the
+   browser can't decode HEIC itself (Safari can; Chrome can't).
+   Vendored locally (heic2any.min.js) so it works fully offline;
+   falls back to the CDN if the local copy is missing. */
+let heicLib = null;
+function injectScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src; s.onload=res; s.onerror=()=>rej(new Error('load failed: '+src));
+    document.head.appendChild(s);
+  });
+}
+function loadHeicLib(){
+  if(!heicLib){
+    heicLib = injectScript('heic2any.min.js')
+      .catch(()=>{ heicLib=null; throw new Error('could not load the local HEIC decoder'); });
+  }
+  return heicLib;
+}
+
+function decodeBlob(b){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>res(img);
+    img.onerror=()=>{ URL.revokeObjectURL(img.src); rej(new Error('decode failed')); };
+    img.src=URL.createObjectURL(b);
+  });
+}
+function dropMsg(t){ const el=$('#dropMsg'); if(el) el.textContent=t; }
+
+async function loadFile(f){
+  if(!f || (!f.type.startsWith('image') && !isHeic(f))) return;
+  try{
+    // try the browser's native decoder first (Safari handles HEIC)
+    const img=await decodeBlob(f);
+    resetHistory();
+    setupImage(img); URL.revokeObjectURL(img.src);
+  }catch(e){
+    if(!isHeic(f)){ alert('Could not open this image.'); return; }
+    try{
+      dropMsg('Converting HEIC on-device…');
+      await loadHeicLib();
+      const out=await heic2any({blob:f, toType:'image/jpeg', quality:0.95});
+      const jpg=Array.isArray(out)?out[0]:out;   // multi-image HEIC → first frame
+      const img=await decodeBlob(jpg);
+      resetHistory();
+      setupImage(img); URL.revokeObjectURL(img.src);
+    }catch(err){
+      dropMsg('Drop a photo here or click to choose');
+      alert('Could not decode this HEIC file: '+err.message);
+    }
+  }
+}
+function setupImage(img){
+  const SMALL=640;
+  sourceImage=img;
+  srcImage=buildSourceImageData(img);
+  const w=srcImage.width, h=srcImage.height;
+  fullBuf=buildBuffers(srcImage);
+
+  if(Math.max(w,h)>SMALL){
+    const s=SMALL/Math.max(w,h);
+    const sw=Math.round(w*s), sh=Math.round(h*s);
+    const sc2=document.createElement('canvas'); sc2.width=sw; sc2.height=sh;
+    const sctx=sc2.getContext('2d'); sctx.imageSmoothingEnabled=true;
+    tmpCanvas.width=w; tmpCanvas.height=h;
+    tmpCanvas.getContext('2d').putImageData(srcImage,0,0);
+    sctx.drawImage(tmpCanvas,0,0,sw,sh);
+    smallBuf=buildBuffers(sctx.getImageData(0,0,sw,sh));
+  }else{
+    smallBuf=fullBuf;
+  }
+
+  canvas.width=w; canvas.height=h;
+  canvas.style.display='block';
+  $('#drop').style.display='none';
+  stage.classList.remove('empty');
+  $('#saveBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
+  $('#compareBtn').disabled=false;
+  cmpHint.style.display='block';
+  renderPreview();
+  updateHint(); placeHandle();
+  if(usesMask()) computeMasks();
+}
+
+/* ---------- AI subject segmentation (Pro Finish) ----------
+   MediaPipe selfie segmenter, vendored in ./vendor — runs fully
+   on-device. Needs http:// (browsers block model fetches on
+   file:// pages), so file:// silently falls back to the radial
+   center-focus mask. */
+let segmenter=null, segLoading=null, maskFailed=false;
+
+function getSegmenter(){
+  if(location.protocol==='file:')
+    return Promise.reject(new Error('file:// page — run start-lumo.command'));
+  if(segmenter) return Promise.resolve(segmenter);
+  if(!segLoading){
+    segLoading=(async()=>{
+      const vision=await import('./vendor/vision_bundle.mjs');
+      const fileset=await vision.FilesetResolver.forVisionTasks('./vendor/wasm');
+      segmenter=await vision.ImageSegmenter.createFromOptions(fileset,{
+        baseOptions:{modelAssetPath:'./vendor/selfie_segmenter.tflite'},
+        outputConfidenceMasks:true, runningMode:'IMAGE'
+      });
+      return segmenter;
+    })().catch(e=>{ segLoading=null; throw e; });
+  }
+  return segLoading;
+}
+
+function maskToImageData(f,w,h){
+  const id=new ImageData(w,h);
+  for(let i=0;i<w*h;i++){
+    const v=Math.max(0,Math.min(255,f[i]*255))|0;
+    id.data[i*4]=v; id.data[i*4+1]=v; id.data[i*4+2]=v; id.data[i*4+3]=255;
+  }
+  return id;
+}
+function imageDataToMask(id){
+  const n=id.width*id.height, f=new Float32Array(n);
+  for(let i=0;i<n;i++) f[i]=id.data[i*4]/255;
+  return f;
+}
+
+async function computeMasks(){
+  if(!fullBuf || fullBuf.mask || maskFailed) return;
+  const w=fullBuf.img.width, h=fullBuf.img.height;
+  try{
+    cmpHint.textContent='Finding subject…';
+    const seg=await getSegmenter();
+    if(!fullBuf) return;                       // image replaced meanwhile
+    const c=document.createElement('canvas'); c.width=w; c.height=h;
+    c.getContext('2d').putImageData(fullBuf.img,0,0);
+    const res=seg.segment(c);
+    const cm=res.confidenceMasks;
+    const raw=(cm.length>1?cm[1]:cm[0]).getAsFloat32Array();
+    const feathered=makeBlur(maskToImageData(raw,w,h),w,h,6); // soft edges
+    fullBuf.mask=imageDataToMask(feathered);
+    if(smallBuf!==fullBuf){
+      const mc=document.createElement('canvas'); mc.width=w; mc.height=h;
+      mc.getContext('2d').putImageData(feathered,0,0);
+      const sw=smallBuf.img.width, sh=smallBuf.img.height;
+      const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
+      const sctx=sc.getContext('2d'); sctx.imageSmoothingEnabled=true;
+      sctx.drawImage(mc,0,0,sw,sh);
+      smallBuf.mask=imageDataToMask(sctx.getImageData(0,0,sw,sh));
+    }
+    if(res.close) res.close();
+    updateHint(); render(false);
+  }catch(e){
+    maskFailed=true;
+    console.warn('segmentation unavailable:',e.message||e);
+    updateHint();
+  }
+}
+
+/* ---------- Light handle (Smart Light relight) ---------- */
+function lightActive(){ return params.relight>0.001 || params.hotspot>0.001; }
+function defaultLight(){        // flash-led looks center the light
+  return (params.hotspot>0.001 && !(params.relight>0.001))
+    ? {x:0.5,y:0.5} : {x:0.5,y:0.28};
+}
+function placeHandle(){
+  if(!srcImage || !lightActive()){ lightHandle.style.display='none'; return; }
+  const cr=canvas.getBoundingClientRect(), sr=stage.getBoundingClientRect();
+  lightHandle.style.display='block';
+  lightHandle.style.left=(cr.left-sr.left + state.light.x*cr.width)+'px';
+  lightHandle.style.top =(cr.top -sr.top  + state.light.y*cr.height)+'px';
+}
+lightHandle.addEventListener('pointerdown', e=>{
+  e.preventDefault(); e.stopPropagation();
+  pushHistory();
+  lightHandle.setPointerCapture(e.pointerId);
+  const move=ev=>{
+    const cr=canvas.getBoundingClientRect();
+    state.light.x=Math.min(1,Math.max(0,(ev.clientX-cr.left)/cr.width));
+    state.light.y=Math.min(1,Math.max(0,(ev.clientY-cr.top)/cr.height));
+    placeHandle(); renderPreview();
+  };
+  const up=ev=>{
+    lightHandle.removeEventListener('pointermove',move);
+    lightHandle.removeEventListener('pointerup',up);
+    render(false);
+  };
+  lightHandle.addEventListener('pointermove',move);
+  lightHandle.addEventListener('pointerup',up);
+});
+window.addEventListener('resize', placeHandle);
+
+function usesMask(){
+  return !!PRESETS[currentPreset].depth || state.focus || params.hotspot>0.001;
+}
+
+function clamp(v,min,max){ return Math.min(max,Math.max(min,v)); }
+function defaultLightForMode(mode){
+  return mode==='flash' ? {x:0.5,y:0.5} : {x:0.5,y:0.28};
+}
+function updateLightUI(){
+  document.querySelectorAll('[data-light-mode]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.lightMode===state.lightMode);
+  });
+  $('#lightAmount').value=state.lightAmount;
+  $('#lightAmountVal').textContent=state.lightAmount+'%';
+  $('#lightSoftness').value=state.lightSoftness;
+  $('#lightSoftnessVal').textContent=state.lightSoftness+'%';
+  $('#lightWarmth').value=state.lightWarmth;
+  $('#lightWarmthVal').textContent=state.lightWarmth>0?'+'+state.lightWarmth:state.lightWarmth;
+  $('#lightBackdrop').value=state.lightBackdrop;
+  $('#lightBackdropVal').textContent=state.lightBackdrop+'%';
+  $('#lightBackdropRow').style.display=state.lightMode==='natural'?'none':'block';
+}
+function syncLightControlsFromParams(){
+  const rel=params.relight||0, hot=params.hotspot||0;
+  state.lightMode = hot>0.04 && rel>0.08 ? 'studio' : hot>Math.max(0.03, rel*1.4) ? 'flash' : 'natural';
+  const mode=state.lightMode;
+  const rawAmount = mode==='flash'
+    ? Math.max(hot/0.48, rel/0.06)
+    : mode==='studio'
+      ? Math.max(rel/0.42, hot/0.16)
+      : rel/0.64;
+  const radius=params.lightRadius!==undefined ? params.lightRadius : (mode==='flash'?0.44:0.68);
+  const minR=mode==='flash'?0.22:0.35, maxR=mode==='flash'?0.68:1.05;
+  const warm=params.relightWarm||0;
+  const bg=params.bgFalloff!==undefined?params.bgFalloff:0.22;
+  state.lightAmount=Math.round(clamp(rawAmount,0,1)*100);
+  state.lightSoftness=Math.round(clamp((radius-minR)/(maxR-minR),0,1)*100);
+  state.lightWarmth=Math.round(clamp(warm/0.22,-1,1)*100);
+  state.lightBackdrop=Math.round(clamp((bg-0.06)/(0.34-0.06),0,1)*100);
+  updateLightUI();
+}
+function applyLightControls(){
+  const a=state.lightAmount/100, soft=state.lightSoftness/100, warm=state.lightWarmth/100;
+  params.relightWarm=warm*0.22;
+  params.bgFalloff=lerp(0.06,0.34,state.lightBackdrop/100);
+  if(state.lightMode==='flash'){
+    params.relight=0.06*a;
+    params.hotspot=0.48*a;
+    params.lightRadius=lerp(0.22,0.68,soft);
+    params.falloff=lerp(0.82,0.45,soft);
+    params.dirLight=0.04;
+  }else if(state.lightMode==='studio'){
+    params.relight=0.42*a;
+    params.hotspot=0.16*a;
+    params.lightRadius=lerp(0.35,1.05,soft);
+    params.falloff=lerp(0.52,0.20,soft);
+    params.dirLight=lerp(0.45,0.22,soft);
+  }else{
+    params.relight=0.64*a;
+    params.hotspot=0;
+    params.lightRadius=lerp(0.38,1.05,soft);
+    params.falloff=lerp(0.22,0.04,soft);
+    params.dirLight=lerp(0.30,0.12,soft);
+  }
+  updateLightUI();
+  updateHint(); placeHandle();
+  if(params.hotspot>0.001) computeMasks();
+  renderPreview();
+}
+
+/* ---------- Fine-tune sliders ---------- */
+function fmtVal(k,v){
+  if(k==='rGain'||k==='gGain'||k==='bGain') return (+v).toFixed(3);
+  const r=Math.round(v*100)/100;
+  return Number.isInteger(r)?r.toFixed(0):String(r);
+}
+function buildSliders(){
+  const wrap=$('#sliders'); wrap.innerHTML='';
+  for(const s of SLIDERS){
+    if(s.length===1){
+      const h=document.createElement('div'); h.className='grp'; h.textContent=s[0];
+      wrap.appendChild(h); continue;
+    }
+    const [k,label,min,max,step]=s;
+    const row=document.createElement('div'); row.className='slider-row';
+    const lab=document.createElement('label');
+    lab.innerHTML=label+' <b id="v_'+k+'"></b>';
+    const inp=document.createElement('input');
+    inp.type='range'; inp.min=min; inp.max=max; inp.step=step; inp.id='s_'+k;
+    inp.addEventListener('input',()=>{
+      params[k]=+inp.value; $('#v_'+k).textContent=fmtVal(k,inp.value);
+      if(k==='relight'||k==='hotspot'){ placeHandle(); updateHint(); }
+      if(k==='hotspot'&&params.hotspot>0.001) computeMasks();
+      renderPreview();
+    });
+    row.appendChild(lab); row.appendChild(inp); wrap.appendChild(row);
+  }
+}
+function syncSliders(){
+  for(const [k] of SKEYS){
+    const inp=$('#s_'+k); if(!inp) continue;
+    inp.value = params[k]!==undefined ? params[k] : paramDefault(k);
+    params[k]=+inp.value;                       // adopt clamped value
+    $('#v_'+k).textContent=fmtVal(k,inp.value);
+  }
+}
+
+function copyParams(p){
+  return JSON.parse(JSON.stringify(p));
+}
+function syncMainControls(){
+  const intensity=Math.round(state.intensity*100);
+  $('#intensity').value=intensity; $('#intVal').textContent=intensity+'%';
+  $('#aiclarity').value=Math.round(state.aiClarity*100); $('#aicVal').textContent=Math.round(state.aiClarity*100);
+  $('#clean').checked=state.clean;
+  $('#focus').checked=state.focus;
+  $('#straighten').value=state.straighten; $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
+  $('#exportSize').value=state.exportSize;
+  $('#hqExport').checked=state.hqExport;
+  document.querySelectorAll('[data-crop]').forEach(btn=>btn.classList.toggle('active',btn.dataset.crop===state.cropMode));
+}
+function stateSnapshot(){
+  return {
+    preset:currentPreset,
+    params:copyParams(params),
+    state:copyParams(state)
+  };
+}
+function updateHistoryButtons(){
+  $('#undoBtn').disabled=undoStack.length===0;
+  $('#redoBtn').disabled=redoStack.length===0;
+}
+function resetHistory(){
+  undoStack.length=0; redoStack.length=0; updateHistoryButtons();
+}
+function pushHistory(){
+  if(historyLock) return;
+  undoStack.push(stateSnapshot());
+  if(undoStack.length>40) undoStack.shift();
+  redoStack.length=0;
+  updateHistoryButtons();
+}
+function restoreSnapshot(snap){
+  if(!snap) return;
+  historyLock=true;
+  currentPreset=snap.preset;
+  params=copyParams(snap.params);
+  Object.assign(state,copyParams(snap.state));
+  document.querySelectorAll('.preset').forEach(p=>p.classList.toggle('active',p.dataset.preset===currentPreset));
+  const el=document.querySelector(`[data-preset="${currentPreset}"]`);
+  $('#tunePreset').textContent=el?el.querySelector('.name').textContent:(CUSTOM_PRESET_NAMES[currentPreset]||currentPreset);
+  syncMainControls(); syncSliders(); updateLightUI(); updateHint();
+  if(sourceImage) setupImage(sourceImage); else renderPreview();
+  historyLock=false;
+  updateHistoryButtons();
+}
+function undo(){
+  if(!undoStack.length) return;
+  redoStack.push(stateSnapshot());
+  restoreSnapshot(undoStack.pop());
+}
+function redo(){
+  if(!redoStack.length) return;
+  undoStack.push(stateSnapshot());
+  restoreSnapshot(redoStack.pop());
+}
+function presetStateSnapshot(){
+  return {
+    intensity:state.intensity,
+    aiClarity:state.aiClarity,
+    clean:state.clean,
+    focus:state.focus,
+    light:{...state.light},
+    lightMode:state.lightMode,
+    lightAmount:state.lightAmount,
+    lightSoftness:state.lightSoftness,
+    lightWarmth:state.lightWarmth,
+    lightBackdrop:state.lightBackdrop
+  };
+}
+function applyPresetState(saved){
+  if(!saved) return;
+  state.intensity=saved.intensity!==undefined?saved.intensity:state.intensity;
+  state.aiClarity=saved.aiClarity!==undefined?saved.aiClarity:state.aiClarity;
+  state.clean=saved.clean!==undefined?saved.clean:state.clean;
+  state.focus=!!saved.focus;
+  state.light=saved.light?{...saved.light}:defaultLight();
+  if(saved.lightMode) state.lightMode=saved.lightMode;
+  if(saved.lightAmount!==undefined) state.lightAmount=saved.lightAmount;
+  if(saved.lightSoftness!==undefined) state.lightSoftness=saved.lightSoftness;
+  if(saved.lightWarmth!==undefined) state.lightWarmth=saved.lightWarmth;
+  if(saved.lightBackdrop!==undefined) state.lightBackdrop=saved.lightBackdrop;
+  syncMainControls();
+}
+function customSwatch(p){
+  const warm=clamp(((p.rGain||1)-(p.bGain||1))*160, -35, 35);
+  const sat=clamp((p.sat||1)*45, 30, 72);
+  return `linear-gradient(135deg,hsl(${42+warm} 82% 86%),hsl(${205-warm} ${sat}% 70%) 45%,hsl(226 18% 24%))`;
+}
+function addCustomPresetTile(id,name,p){
+  const tile=document.createElement('div');
+  tile.className='preset';
+  tile.dataset.preset=id;
+  tile.innerHTML='<div class="swatch"></div><div class="name"></div><div class="sub">custom</div>';
+  tile.querySelector('.swatch').style.background=customSwatch(p);
+  tile.querySelector('.name').textContent=name;
+  $('#presets').appendChild(tile);
+}
+function readCustomPresetList(){
+  try{
+    const list=JSON.parse(localStorage.getItem(CUSTOM_PRESET_KEY)||'[]');
+    return Array.isArray(list)?list:[];
+  }catch(e){
+    return [];
+  }
+}
+function loadCustomPresets(){
+  for(const item of readCustomPresetList()){
+    if(!item || !item.id || !item.params) continue;
+    PRESETS[item.id]=item.params;
+    CUSTOM_PRESET_STATE[item.id]=item.state||null;
+    CUSTOM_PRESET_NAMES[item.id]=item.name||'My Preset';
+    addCustomPresetTile(item.id,CUSTOM_PRESET_NAMES[item.id],item.params);
+  }
+}
+function saveCustomPreset(){
+  if(!srcImage) return;
+  const name=(prompt('Preset name','My Preset')||'').trim();
+  if(!name) return;
+  const id='custom-'+Date.now();
+  const item={
+    id,
+    name:name.slice(0,42),
+    params:copyParams(params),
+    state:presetStateSnapshot()
+  };
+  const list=readCustomPresetList();
+  list.push(item);
+  localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
+  PRESETS[id]=item.params;
+  CUSTOM_PRESET_STATE[id]=item.state;
+  CUSTOM_PRESET_NAMES[id]=item.name;
+  addCustomPresetTile(id,item.name,item.params);
+  selectPreset(id);
+}
+
+function updateHint(){
+  if(lightActive()){
+    cmpHint.textContent='Hold to compare · drag ☀ to move the light';
+  }else if(usesMask()){
+    cmpHint.textContent = (fullBuf&&fullBuf.mask)
+      ? 'Hold to compare · AI subject detected'
+      : maskFailed
+        ? 'Hold to compare · center focus (run start-lumo.command for AI)'
+        : 'Hold to compare · finding subject…';
+  }else{
+    cmpHint.textContent='Hold to compare original';
+  }
+}
+
+/* ---------- UI wiring ---------- */
+function selectPreset(id){
+  const el=document.querySelector(`[data-preset="${id}"]`);
+  if(!PRESETS[id]) return;
+  if(!historyLock && id!==currentPreset) pushHistory();
+  currentPreset=id;
+  document.querySelectorAll('.preset').forEach(p=>p.classList.toggle('active',p.dataset.preset===id));
+  params=clonePreset(currentPreset);
+  if(CUSTOM_PRESET_STATE[id]){
+    applyPresetState(CUSTOM_PRESET_STATE[id]);
+  }else{
+    state.light=defaultLight();
+    syncMainControls();
+  }
+  $('#tunePreset').textContent=el?el.querySelector('.name').textContent:(CUSTOM_PRESET_NAMES[id]||id);
+  syncSliders(); syncLightControlsFromParams();
+  updateHint(); placeHandle();
+  renderPreview();
+  if(usesMask()) computeMasks();
+}
+
+document.querySelector('aside').addEventListener('click', e=>{
+  const el=e.target.closest('.preset'); if(!el) return;
+  selectPreset(el.dataset.preset);
+});
+$('#editorTabs').addEventListener('click', e=>{
+  const btn=e.target.closest('.tab-btn[data-tab]'); if(!btn) return;
+  $('#editorTabs').dataset.tab=btn.dataset.tab;
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
+});
+loadCustomPresets();
+buildSliders(); syncSliders(); syncMainControls();
+selectPreset('smart');
+updateHistoryButtons();
+if(location.protocol==='file:') dropMsg('Tap to choose · run start-lumo-mobile.command for install/AI');
+
+function bindPreHistory(el){
+  if(!el) return;
+  el.addEventListener('pointerdown',()=>pushHistory());
+  el.addEventListener('keydown',e=>{ if(e.key==='Enter' || e.key===' ') pushHistory(); });
+}
+['intensity','aiclarity','clean','focus','lightAmount','lightSoftness','lightWarmth','lightBackdrop','straighten','exportSize','hqExport','resetBtn'].forEach(id=>bindPreHistory($('#'+id)));
+document.querySelectorAll('#sliders input[type=range]').forEach(bindPreHistory);
+
+$('#intensity').addEventListener('input', e=>{
+  state.intensity=e.target.value/100;
+  $('#intVal').textContent=e.target.value+'%';
+  renderPreview();
+});
+$('#aiclarity').addEventListener('input', e=>{
+  state.aiClarity=e.target.value/100;
+  $('#aicVal').textContent=e.target.value;
+  if(state.aiClarity>0) computeMasks();    // subject-aware when possible
+  renderPreview();
+});
+$('#clean').addEventListener('change', e=>{
+  state.clean=e.target.checked;
+  renderPreview();
+});
+$('#focus').addEventListener('change', e=>{
+  state.focus=e.target.checked;
+  updateHint();
+  if(state.focus) computeMasks();          // computes once, then cached
+  renderPreview();
+});
+$('#lightModes').addEventListener('click', e=>{
+  const btn=e.target.closest('[data-light-mode]'); if(!btn) return;
+  const next=btn.dataset.lightMode;
+  const changed=state.lightMode!==next;
+  if(changed) pushHistory();
+  state.lightMode=next;
+  if(changed){
+    state.light=defaultLightForMode(next);
+    if(state.lightAmount===0) state.lightAmount=next==='flash'?45:50;
+  }
+  applyLightControls();
+});
+for(const id of ['lightAmount','lightSoftness','lightWarmth','lightBackdrop']){
+  $('#'+id).addEventListener('input', e=>{
+    const key=id.replace('light','');
+    state['light'+key]=+e.target.value;
+    applyLightControls();
+  });
+}
+$('#cropModes').addEventListener('click', e=>{
+  const btn=e.target.closest('[data-crop]'); if(!btn) return;
+  if(state.cropMode===btn.dataset.crop) return;
+  pushHistory();
+  state.cropMode=btn.dataset.crop;
+  syncMainControls();
+  if(sourceImage) setupImage(sourceImage);
+});
+$('#straighten').addEventListener('input', e=>{
+  state.straighten=+e.target.value;
+  $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
+  clearTimeout(fullTimer);
+  fullTimer=setTimeout(()=>{ if(sourceImage) setupImage(sourceImage); },260);
+});
+$('#exportSize').addEventListener('change', e=>{ state.exportSize=e.target.value; });
+$('#hqExport').addEventListener('change', e=>{ state.hqExport=e.target.checked; });
+$('#undoBtn').addEventListener('click', undo);
+$('#redoBtn').addEventListener('click', redo);
+$('#compareBtn').addEventListener('pointerdown', e=>{ e.preventDefault(); if(srcImage) showOriginal(); });
+$('#compareBtn').addEventListener('pointerup', ()=>renderPreview());
+$('#compareBtn').addEventListener('pointercancel', ()=>renderPreview());
+
+$('#chooseBtn').addEventListener('click', ()=>fileInput.click());
+$('#cameraBtn').addEventListener('click', ()=>cameraInput.click());
+stage.addEventListener('click', ()=>{ if(!srcImage) fileInput.click(); });
+fileInput.addEventListener('change', e=>loadFile(e.target.files[0]));
+cameraInput.addEventListener('change', e=>loadFile(e.target.files[0]));
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  installPrompt=e;
+});
+$('#installBtn').addEventListener('click', async ()=>{
+  if(installPrompt){
+    installPrompt.prompt();
+    await installPrompt.userChoice.catch(()=>null);
+    installPrompt=null;
+  }else{
+    alert('On iPhone, tap Share, then Add to Home Screen. For AI and offline install, open Lumo from start-lumo-mobile.command instead of file://.');
+  }
+});
+
+['dragover','dragenter'].forEach(ev=>stage.addEventListener(ev,e=>e.preventDefault()));
+stage.addEventListener('drop', e=>{ e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
+
+canvas.addEventListener('mousedown', ()=>{holding=true;showOriginal();});
+window.addEventListener('mouseup', ()=>{ if(holding){holding=false;render(false);} });
+canvas.addEventListener('touchstart', ()=>{holding=true;showOriginal();},{passive:true});
+canvas.addEventListener('touchend', ()=>{ if(holding){holding=false;render(false);} });
+
+$('#resetBtn').addEventListener('click', ()=>{
+  params=clonePreset(currentPreset);          // revert edits to preset defaults
+  const saved=CUSTOM_PRESET_STATE[currentPreset];
+  if(saved){
+    applyPresetState(saved);
+  }else{
+    state.intensity=DEFAULT_INTENSITY; state.aiClarity=0; state.clean=true; state.focus=false; state.light=defaultLight();
+    syncMainControls();
+  }
+  syncSliders(); syncLightControlsFromParams(); updateHint(); placeHandle(); render(false);
+  if(usesMask()) computeMasks();
+});
+$('#presetBtn').addEventListener('click', saveCustomPreset);
+
+function exportDimensions(){
+  if(state.exportSize==='1080-square') return {w:1080,h:1080};
+  if(state.exportSize==='1080-portrait') return {w:1080,h:1350};
+  if(state.exportSize==='story') return {w:1080,h:1920};
+  return {w:canvas.width,h:canvas.height};
+}
+function makeExportCanvas(){
+  const dims=exportDimensions();
+  if(dims.w===canvas.width && dims.h===canvas.height) return canvas;
+  const out=document.createElement('canvas'); out.width=dims.w; out.height=dims.h;
+  const octx=out.getContext('2d'); octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
+  const srcRatio=canvas.width/canvas.height, dstRatio=dims.w/dims.h;
+  let sx=0, sy=0, sw=canvas.width, sh=canvas.height;
+  if(srcRatio>dstRatio){
+    sw=canvas.height*dstRatio; sx=(canvas.width-sw)/2;
+  }else{
+    sh=canvas.width/dstRatio; sy=(canvas.height-sh)/2;
+  }
+  octx.drawImage(canvas,sx,sy,sw,sh,0,0,dims.w,dims.h);
+  return out;
+}
+
+$('#saveBtn').addEventListener('click', ()=>{
+  setBusy(true);
+  requestAnimationFrame(()=>{
+    render(false);   // make sure canvas holds the full-res result
+    const out=makeExportCanvas();
+    const a=document.createElement('a');
+    a.download=`lumo-${currentPreset}.jpg`;
+    out.toBlob(blob=>{
+      setBusy(false);
+      if(!blob){ alert('Could not save this image.'); return; }
+      const url=URL.createObjectURL(blob);
+      a.href=url;
+      a.click();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+    }, 'image/jpeg', state.hqExport?0.98:(state.clean?0.96:0.94));
+  });
+});
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('./sw-mobile.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>

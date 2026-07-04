@@ -1,0 +1,19 @@
+{
+  "name": "Lumo Mobile",
+  "short_name": "Lumo",
+  "description": "A mobile-first on-device film preset editor.",
+  "start_url": "./mobile.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0d0e12",
+  "theme_color": "#0d0e12",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/lumo-mobile.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
