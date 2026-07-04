@@ -8,11 +8,11 @@ Lumo is a static, on-device film preset editor.
 - HEIC decoding uses the bundled `heic2any.min.js` file.
 - No paid API, backend, or server-side processing is required.
 - Desktop and mobile export full-resolution edits by default. JPEG uses maximum quality, and PNG export is available for lossless saves.
-- Use Best quality for a one-tap PNG lossless export. Lumo warns before saving when export dimensions do not match the imported photo.
+- Mobile exports use the selected JPEG or PNG format at maximum quality, and warn before saving when export dimensions do not match the imported photo.
 - Mobile previews use a smaller working image for speed, but export renders from the original decoded photo at original dimensions unless a social export size is selected.
 - Mobile saved presets are stored in the browser on that device, and subject-mask blur runs on-device.
 - The mobile Update app button refreshes only cached app files; saved presets remain in browser storage.
-- Mobile Save to Photos opens the iPhone share sheet with a high-quality JPEG so Save Image can put it in the Photos library.
+- Mobile Save to Photos opens the iPhone share sheet with the selected JPEG or PNG so Save Image can put it in the Photos library.
 
 ## GitHub Pages
 
