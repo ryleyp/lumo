@@ -440,6 +440,7 @@
       <div class="btns" style="margin-bottom:8px">
         <button class="act" id="presetBtn" disabled>Save preset</button>
         <button class="act" id="installBtn" type="button">Install</button>
+        <button class="act" id="updateAppBtn" type="button">Update app</button>
       </div>
       <div class="slider-row" style="margin-bottom:10px">
         <label>Straighten <b id="straightVal">0°</b></label>
@@ -1829,6 +1830,62 @@ $('#installBtn').addEventListener('click', async ()=>{
     alert('On iPhone, tap Share, then Add to Home Screen. For AI and offline install, open Lumo from start-lumo-mobile.command instead of file://.');
   }
 });
+async function checkForAppUpdate(){
+  const btn=$('#updateAppBtn');
+  if(!('serviceWorker' in navigator) || !location.protocol.startsWith('http')){
+    alert('Open the GitHub Pages mobile app or Home Screen app to check for updates.');
+    return;
+  }
+  const originalText=btn.textContent;
+  const reset=()=>{ btn.disabled=false; btn.textContent=originalText; };
+  btn.disabled=true;
+  btn.textContent='Checking...';
+  let reloading=false;
+  const reloadOnce=()=>{
+    if(reloading) return;
+    reloading=true;
+    btn.textContent='Reloading...';
+    location.reload();
+  };
+  const activateWaiting=reg=>{
+    if(!reg || !reg.waiting) return false;
+    btn.textContent='Updating...';
+    reg.waiting.postMessage({type:'SKIP_WAITING'});
+    setTimeout(reloadOnce,1200);
+    return true;
+  };
+  try{
+    let reg=await navigator.serviceWorker.getRegistration('./');
+    if(!reg) reg=await navigator.serviceWorker.register('./sw-mobile.js');
+    navigator.serviceWorker.addEventListener('controllerchange', reloadOnce, {once:true});
+    if(activateWaiting(reg)) return;
+    const updated=await reg.update();
+    if(activateWaiting(updated)) return;
+    if(updated.installing){
+      btn.textContent='Downloading...';
+      const installing=updated.installing;
+      installing.addEventListener('statechange', ()=>{
+        if(installing.state==='installed'){
+          if(!activateWaiting(updated)) setTimeout(reloadOnce,1200);
+        }
+      });
+      setTimeout(()=>{
+        if(reloading) return;
+        reset();
+        alert('Update check finished. If Lumo does not refresh, close and reopen the app once.');
+      },8000);
+      return;
+    }
+    navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
+    reset();
+    alert('Lumo is already up to date.');
+  }catch(e){
+    navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
+    reset();
+    alert('Could not check for updates. Make sure you are online, then try again.');
+  }
+}
+$('#updateAppBtn').addEventListener('click', checkForAppUpdate);
 
 ['dragover','dragenter'].forEach(ev=>stage.addEventListener(ev,e=>e.preventDefault()));
 stage.addEventListener('drop', e=>{ e.preventDefault(); loadFile(e.dataTransfer.files[0]); });

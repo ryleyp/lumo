@@ -11,6 +11,7 @@ Lumo is a static, on-device film preset editor.
 - Use Best quality for a one-tap PNG lossless export. Lumo warns before saving when export dimensions do not match the imported photo.
 - Mobile previews use a smaller working image for speed, but export renders from the original decoded photo at original dimensions unless a social export size is selected.
 - Mobile saved presets are stored in the browser on that device, and subject-mask blur runs on-device.
+- The mobile Update app button refreshes only cached app files; saved presets remain in browser storage.
 
 ## GitHub Pages
 
