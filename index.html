@@ -116,6 +116,12 @@
   #sliders .slider-row{margin-top:12px}
   #sliders .slider-row b{font-variant-numeric:tabular-nums}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:12px}
+  .select-row{margin:0 0 12px}
+  .select-row label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+  select.text-input{
+    width:100%;border:1px solid var(--line);background:var(--panel-2);color:var(--text);
+    border-radius:10px;padding:10px;font:inherit;
+  }
   .switch{position:relative;width:38px;height:22px}
   .switch input{opacity:0;width:0;height:0}
   .track{position:absolute;inset:0;background:var(--line);border-radius:20px;transition:.15s;cursor:pointer}
@@ -306,6 +312,13 @@
       </div>
       <div class="btns" style="margin-bottom:8px">
         <button class="act" id="presetBtn" disabled>Save preset</button>
+      </div>
+      <div class="select-row">
+        <label>Export format</label>
+        <select class="text-input" id="exportFormat">
+          <option value="jpeg">JPEG · maximum quality</option>
+          <option value="png">PNG · lossless</option>
+        </select>
       </div>
       <div class="btns">
         <button class="act" id="resetBtn" disabled>Reset</button>
@@ -563,6 +576,7 @@ const PRESETS = {
    for live preview while dragging sliders / the light.
    ============================================================ */
 const DEFAULT_INTENSITY = 0.75;
+const EXPORT_JPEG_QUALITY = 0.99;
 const state = {
   intensity:DEFAULT_INTENSITY,
   focus:false,
@@ -573,7 +587,8 @@ const state = {
   lightAmount:0,
   lightSoftness:50,
   lightWarmth:0,
-  lightBackdrop:45
+  lightBackdrop:45,
+  exportFormat:'jpeg'
 };
 /* Global AI Focus: minimal-blur subject pop layered on any preset */
 const FOCUS = { bokeh:0.15, dim:0.10, lift:0.10, clarity:0.40 };
@@ -964,9 +979,9 @@ async function loadFile(f){
     try{
       dropMsg('Converting HEIC on-device…');
       await loadHeicLib();
-      const out=await heic2any({blob:f, toType:'image/jpeg', quality:0.95});
-      const jpg=Array.isArray(out)?out[0]:out;   // multi-image HEIC → first frame
-      const img=await decodeBlob(jpg);
+      const out=await heic2any({blob:f, toType:'image/png'});
+      const converted=Array.isArray(out)?out[0]:out;   // multi-image HEIC → first frame
+      const img=await decodeBlob(converted);
       setupImage(img); URL.revokeObjectURL(img.src);
     }catch(err){
       dropMsg('Drop a photo here or click to choose');
@@ -1224,6 +1239,7 @@ function syncMainControls(){
   $('#aiclarity').value=Math.round(state.aiClarity*100); $('#aicVal').textContent=Math.round(state.aiClarity*100);
   $('#clean').checked=state.clean;
   $('#focus').checked=state.focus;
+  $('#exportFormat').value=state.exportFormat;
 }
 function presetStateSnapshot(){
   return {
@@ -1234,9 +1250,9 @@ function presetStateSnapshot(){
     light:{...state.light},
     lightMode:state.lightMode,
     lightAmount:state.lightAmount,
-    lightSoftness:state.lightSoftness,
-    lightWarmth:state.lightWarmth,
-    lightBackdrop:state.lightBackdrop
+  lightSoftness:state.lightSoftness,
+  lightWarmth:state.lightWarmth,
+  lightBackdrop:state.lightBackdrop
   };
 }
 function applyPresetState(saved){
@@ -1362,6 +1378,7 @@ $('#clean').addEventListener('change', e=>{
   state.clean=e.target.checked;
   renderPreview();
 });
+$('#exportFormat').addEventListener('change', e=>{ state.exportFormat=e.target.value; });
 $('#focus').addEventListener('change', e=>{
   state.focus=e.target.checked;
   updateHint();
@@ -1416,14 +1433,15 @@ $('#presetBtn').addEventListener('click', saveCustomPreset);
 $('#saveBtn').addEventListener('click', ()=>{
   render(false);   // make sure canvas holds the full-res result
   const a=document.createElement('a');
-  a.download=`lumo-${currentPreset}.jpg`;
+  const png=state.exportFormat==='png';
+  a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
   canvas.toBlob(blob=>{
     if(!blob){ alert('Could not save this image.'); return; }
     const url=URL.createObjectURL(blob);
     a.href=url;
     a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }, 'image/jpeg', state.clean?0.99:0.97);
+  }, png?'image/png':'image/jpeg', png?undefined:EXPORT_JPEG_QUALITY);
 });
 </script>
 </body>

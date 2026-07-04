@@ -460,6 +460,13 @@
           <option value="story">Story 9:16</option>
         </select>
       </div>
+      <div class="select-row">
+        <label>Export format</label>
+        <select class="text-input" id="exportFormat">
+          <option value="jpeg">JPEG · maximum quality</option>
+          <option value="png">PNG · lossless</option>
+        </select>
+      </div>
       <div class="toggle-row">
         <span>Maximum quality</span>
         <label class="switch"><input type="checkbox" id="hqExport" checked><span class="track"></span></label>
@@ -722,6 +729,7 @@ const PRESETS = {
    preview while dragging sliders / the light.
    ============================================================ */
 const DEFAULT_INTENSITY = 0.75;
+const EXPORT_JPEG_QUALITY = 0.99;
 const EDIT_MAX_SIZE = 1600, PREVIEW_MAX_SIZE = 640;
 const state = {
   intensity:DEFAULT_INTENSITY,
@@ -738,6 +746,7 @@ const state = {
   cropMode:'free',
   straighten:0,
   exportSize:'original',
+  exportFormat:'jpeg',
   hqExport:true,
   showMask:false
 };
@@ -1215,9 +1224,9 @@ async function loadFile(f){
     try{
       dropMsg('Converting HEIC on-device…');
       await loadHeicLib();
-      const out=await heic2any({blob:f, toType:'image/jpeg', quality:0.95});
-      const jpg=Array.isArray(out)?out[0]:out;   // multi-image HEIC → first frame
-      const img=await decodeBlob(jpg);
+      const out=await heic2any({blob:f, toType:'image/png'});
+      const converted=Array.isArray(out)?out[0]:out;   // multi-image HEIC → first frame
+      const img=await decodeBlob(converted);
       resetHistory();
       setupImage(img); URL.revokeObjectURL(img.src);
     }catch(err){
@@ -1483,6 +1492,7 @@ function syncMainControls(){
   $('#bgBlurVal').textContent=Math.round(state.backgroundBlur*100)+'%';
   $('#straighten').value=state.straighten; $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
   $('#exportSize').value=state.exportSize;
+  $('#exportFormat').value=state.exportFormat;
   $('#hqExport').checked=state.hqExport;
   document.querySelectorAll('[data-crop]').forEach(btn=>btn.classList.toggle('active',btn.dataset.crop===state.cropMode));
 }
@@ -1715,7 +1725,7 @@ function bindPreHistory(el){
   el.addEventListener('pointerdown',()=>pushHistory());
   el.addEventListener('keydown',e=>{ if(e.key==='Enter' || e.key===' ') pushHistory(); });
 }
-['intensity','aiclarity','clean','focus','showMask','backgroundBlur','lightAmount','lightSoftness','lightWarmth','lightBackdrop','straighten','exportSize','hqExport','resetBtn'].forEach(id=>bindPreHistory($('#'+id)));
+['intensity','aiclarity','clean','focus','showMask','backgroundBlur','lightAmount','lightSoftness','lightWarmth','lightBackdrop','straighten','exportSize','exportFormat','hqExport','resetBtn'].forEach(id=>bindPreHistory($('#'+id)));
 document.querySelectorAll('#sliders input[type=range]').forEach(bindPreHistory);
 
 $('#intensity').addEventListener('input', e=>{
@@ -1790,6 +1800,7 @@ $('#straighten').addEventListener('input', e=>{
   fullTimer=setTimeout(()=>{ if(sourceImage) setupImage(sourceImage); },260);
 });
 $('#exportSize').addEventListener('change', e=>{ state.exportSize=e.target.value; });
+$('#exportFormat').addEventListener('change', e=>{ state.exportFormat=e.target.value; });
 $('#hqExport').addEventListener('change', e=>{ state.hqExport=e.target.checked; });
 $('#undoBtn').addEventListener('click', undo);
 $('#redoBtn').addEventListener('click', redo);
@@ -1883,7 +1894,8 @@ $('#saveBtn').addEventListener('click', ()=>{
       const base=renderOriginalExportCanvas();
       const out=makeExportCanvas(base);
       const a=document.createElement('a');
-      a.download=`lumo-${currentPreset}.jpg`;
+      const png=state.exportFormat==='png';
+      a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
       out.toBlob(blob=>{
         setBusy(false);
         if(!blob){ alert('Could not save this image.'); return; }
@@ -1891,7 +1903,7 @@ $('#saveBtn').addEventListener('click', ()=>{
         a.href=url;
         a.click();
         setTimeout(()=>URL.revokeObjectURL(url),1000);
-      }, 'image/jpeg', state.hqExport?0.99:0.96);
+      }, png?'image/png':'image/jpeg', png?undefined:(state.hqExport?EXPORT_JPEG_QUALITY:0.98));
     }catch(e){
       console.warn('full quality export failed:',e);
       setBusy(false);
