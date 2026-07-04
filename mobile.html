@@ -1175,6 +1175,32 @@ function drawMaskOverlay(buf,scaled){
   mctx.putImageData(overlay,0,0);
   ctx.drawImage(maskCanvas,0,0,scaled?canvas.width:w,scaled?canvas.height:h);
 }
+function releaseCanvasMemory(c){
+  if(c && c !== canvas){
+    c.width=0;
+    c.height=0;
+  }
+}
+function cleanupExportMemory(...items){
+  for(const item of items) releaseCanvasMemory(item);
+  tmpCanvas.width=0; tmpCanvas.height=0;
+  maskCanvas.width=0; maskCanvas.height=0;
+}
+function clearCurrentPhotoBeforeLoad(){
+  clearTimeout(fullTimer);
+  renderSeq++;
+  holding=false;
+  setBusy(false);
+  fullBuf=null;
+  smallBuf=null;
+  srcImage=null;
+  sourceImage=null;
+  canvas.width=0; canvas.height=0;
+  tmpCanvas.width=0; tmpCanvas.height=0;
+  maskCanvas.width=0; maskCanvas.height=0;
+  cmpHint.style.display='none';
+  lightHandle.style.display='none';
+}
 
 /* ---------- Image loading ---------- */
 const isHeic = f => /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
@@ -1211,6 +1237,7 @@ function dropMsg(t){ const el=$('#dropMsg'); if(el) el.textContent=t; }
 
 async function loadFile(f){
   if(!f || (!f.type.startsWith('image') && !isHeic(f))) return;
+  clearCurrentPhotoBeforeLoad();
   try{
     // try the browser's native decoder first (Safari handles HEIC)
     const img=await decodeBlob(f);
@@ -1233,6 +1260,7 @@ async function loadFile(f){
   }
 }
 function setupImage(img){
+  maskFailed=false;
   sourceImage=img;
   srcImage=buildSourceImageData(img,EDIT_MAX_SIZE);
   const w=srcImage.width, h=srcImage.height;
@@ -1806,8 +1834,14 @@ $('#compareBtn').addEventListener('pointercancel', ()=>renderPreview());
 $('#chooseBtn').addEventListener('click', ()=>fileInput.click());
 $('#cameraBtn').addEventListener('click', ()=>cameraInput.click());
 stage.addEventListener('click', ()=>{ if(!srcImage) fileInput.click(); });
-fileInput.addEventListener('change', e=>loadFile(e.target.files[0]));
-cameraInput.addEventListener('change', e=>loadFile(e.target.files[0]));
+fileInput.addEventListener('change', async e=>{
+  await loadFile(e.target.files[0]);
+  e.target.value='';
+});
+cameraInput.addEventListener('change', async e=>{
+  await loadFile(e.target.files[0]);
+  e.target.value='';
+});
 window.addEventListener('beforeinstallprompt', e=>{
   e.preventDefault();
   installPrompt=e;
@@ -1967,11 +2001,13 @@ async function buildExportCanvasForSave(options={}){
 async function saveCurrentExport(options={}){
   setBusy(true);
   requestAnimationFrame(async ()=>{
+    let out=null;
     try{
-      const out=await buildExportCanvasForSave(options);
+      out=await buildExportCanvasForSave(options);
       const warning=exportWarningMessage(out);
       if(warning && !confirm(warning)){
         setBusy(false);
+        cleanupExportMemory(out);
         return;
       }
       const wantsPng=state.exportFormat==='png';
@@ -1980,12 +2016,17 @@ async function saveCurrentExport(options={}){
       const quality=wantsPng?undefined:EXPORT_JPEG_QUALITY;
       const blob=await canvasToBlob(out,type,quality);
       setBusy(false);
-      if(!blob){ alert('Could not save this image.'); return; }
+      if(!blob){
+        cleanupExportMemory(out);
+        alert('Could not save this image.');
+        return;
+      }
       const filename=`lumo-${currentPreset}.${ext}`;
       if(options.photos){
         if(typeof File !== 'function'){
           alert('Your browser cannot send images directly to Photos. Lumo will save the image as a file instead.');
           downloadBlob(blob,filename);
+          cleanupExportMemory(out);
           return;
         }
         const file=new File([blob],filename,{type});
@@ -1995,12 +2036,15 @@ async function saveCurrentExport(options={}){
           alert('Your browser cannot save directly to Photos. Lumo will save the image as a file instead.');
           downloadBlob(blob,filename);
         }
+        cleanupExportMemory(out);
         return;
       }
       downloadBlob(blob,filename);
+      cleanupExportMemory(out);
     }catch(e){
       console.warn('mobile export failed:',e);
       setBusy(false);
+      cleanupExportMemory(out);
       alert('This photo is too large for this browser to export at full quality. Try JPEG instead of PNG, close other tabs, or choose an Instagram export size.');
     }
   });
