@@ -424,15 +424,15 @@
       <div class="select-row">
         <label>Export size</label>
         <select class="text-input" id="exportSize">
-          <option value="current">Edited size</option>
+          <option value="original">Original size</option>
           <option value="1080-square">Instagram 1:1</option>
           <option value="1080-portrait">Instagram 4:5</option>
           <option value="story">Story 9:16</option>
         </select>
       </div>
       <div class="toggle-row">
-        <span>High quality export</span>
-        <label class="switch"><input type="checkbox" id="hqExport"><span class="track"></span></label>
+        <span>Maximum quality</span>
+        <label class="switch"><input type="checkbox" id="hqExport" checked><span class="track"></span></label>
       </div>
       <div class="btns">
         <button class="act" id="resetBtn" disabled>Reset</button>
@@ -692,6 +692,7 @@ const PRESETS = {
    preview while dragging sliders / the light.
    ============================================================ */
 const DEFAULT_INTENSITY = 0.75;
+const EDIT_MAX_SIZE = 1600, PREVIEW_MAX_SIZE = 640;
 const state = {
   intensity:DEFAULT_INTENSITY,
   focus:false,
@@ -705,8 +706,8 @@ const state = {
   lightBackdrop:45,
   cropMode:'free',
   straighten:0,
-  exportSize:'current',
-  hqExport:false
+  exportSize:'original',
+  hqExport:true
 };
 /* Global AI Focus: minimal-blur subject pop layered on any preset */
 const FOCUS = { bokeh:0.15, dim:0.10, lift:0.10, clarity:0.40 };
@@ -832,10 +833,9 @@ function sourceRectForAspect(w,h,mode){
   const nh=w/ratio;
   return {x:0,y:(h-nh)/2,w,h:nh};
 }
-function buildSourceImageData(img){
-  const MAX_MOBILE=1600;
+function buildSourceImageData(img,maxSize=EDIT_MAX_SIZE){
   const rect=sourceRectForAspect(img.naturalWidth,img.naturalHeight,state.cropMode);
-  const scale=Math.min(1,MAX_MOBILE/Math.max(rect.w,rect.h));
+  const scale=Math.min(1,maxSize/Math.max(rect.w,rect.h));
   const w=Math.max(1,Math.round(rect.w*scale)), h=Math.max(1,Math.round(rect.h*scale));
   const cropCanvas=document.createElement('canvas'); cropCanvas.width=w; cropCanvas.height=h;
   const cropCtx=cropCanvas.getContext('2d'); cropCtx.imageSmoothingEnabled=true;
@@ -864,6 +864,17 @@ function buildBuffers(imgData){
     noise: makeNoise(w*h),             // fine digital noise
     radial: makeRadial(w,h)            // depth fallback mask
   };                                   // .mask added by segmentation
+}
+
+function scaledMask(mask, sw, sh, tw, th){
+  if(!mask || sw===tw && sh===th) return mask || null;
+  const src=maskToImageData(mask,sw,sh);
+  const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
+  sc.getContext('2d').putImageData(src,0,0);
+  const dc=document.createElement('canvas'); dc.width=tw; dc.height=th;
+  const dctx=dc.getContext('2d'); dctx.imageSmoothingEnabled=true;
+  dctx.drawImage(sc,0,0,tw,th);
+  return imageDataToMask(dctx.getImageData(0,0,tw,th));
 }
 
 /* ============================================================
@@ -1154,14 +1165,13 @@ async function loadFile(f){
   }
 }
 function setupImage(img){
-  const SMALL=640;
   sourceImage=img;
-  srcImage=buildSourceImageData(img);
+  srcImage=buildSourceImageData(img,EDIT_MAX_SIZE);
   const w=srcImage.width, h=srcImage.height;
   fullBuf=buildBuffers(srcImage);
 
-  if(Math.max(w,h)>SMALL){
-    const s=SMALL/Math.max(w,h);
+  if(Math.max(w,h)>PREVIEW_MAX_SIZE){
+    const s=PREVIEW_MAX_SIZE/Math.max(w,h);
     const sw=Math.round(w*s), sh=Math.round(h*s);
     const sc2=document.createElement('canvas'); sc2.width=sw; sc2.height=sh;
     const sctx=sc2.getContext('2d'); sctx.imageSmoothingEnabled=true;
@@ -1696,43 +1706,64 @@ $('#resetBtn').addEventListener('click', ()=>{
 });
 $('#presetBtn').addEventListener('click', saveCustomPreset);
 
-function exportDimensions(){
+function exportDimensions(srcCanvas){
   if(state.exportSize==='1080-square') return {w:1080,h:1080};
   if(state.exportSize==='1080-portrait') return {w:1080,h:1350};
   if(state.exportSize==='story') return {w:1080,h:1920};
-  return {w:canvas.width,h:canvas.height};
+  return {w:srcCanvas.width,h:srcCanvas.height};
 }
-function makeExportCanvas(){
-  const dims=exportDimensions();
-  if(dims.w===canvas.width && dims.h===canvas.height) return canvas;
+function makeExportCanvas(srcCanvas){
+  const dims=exportDimensions(srcCanvas);
+  if(dims.w===srcCanvas.width && dims.h===srcCanvas.height) return srcCanvas;
   const out=document.createElement('canvas'); out.width=dims.w; out.height=dims.h;
   const octx=out.getContext('2d'); octx.imageSmoothingEnabled=true; octx.imageSmoothingQuality='high';
-  const srcRatio=canvas.width/canvas.height, dstRatio=dims.w/dims.h;
-  let sx=0, sy=0, sw=canvas.width, sh=canvas.height;
+  const srcRatio=srcCanvas.width/srcCanvas.height, dstRatio=dims.w/dims.h;
+  let sx=0, sy=0, sw=srcCanvas.width, sh=srcCanvas.height;
   if(srcRatio>dstRatio){
-    sw=canvas.height*dstRatio; sx=(canvas.width-sw)/2;
+    sw=srcCanvas.height*dstRatio; sx=(srcCanvas.width-sw)/2;
   }else{
-    sh=canvas.width/dstRatio; sy=(canvas.height-sh)/2;
+    sh=srcCanvas.width/dstRatio; sy=(srcCanvas.height-sh)/2;
   }
-  octx.drawImage(canvas,sx,sy,sw,sh,0,0,dims.w,dims.h);
+  octx.drawImage(srcCanvas,sx,sy,sw,sh,0,0,dims.w,dims.h);
   return out;
+}
+function renderOriginalExportCanvas(){
+  if(!sourceImage){
+    render(false);
+    return canvas;
+  }
+  const exportImage=buildSourceImageData(sourceImage,Infinity);
+  const exportBuf=buildBuffers(exportImage);
+  if(fullBuf && fullBuf.mask){
+    exportBuf.mask=scaledMask(fullBuf.mask,fullBuf.img.width,fullBuf.img.height,exportImage.width,exportImage.height);
+  }
+  const out=process(exportBuf);
+  const outCanvas=document.createElement('canvas'); outCanvas.width=out.width; outCanvas.height=out.height;
+  outCanvas.getContext('2d').putImageData(out,0,0);
+  return outCanvas;
 }
 
 $('#saveBtn').addEventListener('click', ()=>{
   setBusy(true);
   requestAnimationFrame(()=>{
-    render(false);   // make sure canvas holds the full-res result
-    const out=makeExportCanvas();
-    const a=document.createElement('a');
-    a.download=`lumo-${currentPreset}.jpg`;
-    out.toBlob(blob=>{
+    try{
+      const base=renderOriginalExportCanvas();
+      const out=makeExportCanvas(base);
+      const a=document.createElement('a');
+      a.download=`lumo-${currentPreset}.jpg`;
+      out.toBlob(blob=>{
+        setBusy(false);
+        if(!blob){ alert('Could not save this image.'); return; }
+        const url=URL.createObjectURL(blob);
+        a.href=url;
+        a.click();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      }, 'image/jpeg', state.hqExport?0.99:0.96);
+    }catch(e){
+      console.warn('full quality export failed:',e);
       setBusy(false);
-      if(!blob){ alert('Could not save this image.'); return; }
-      const url=URL.createObjectURL(blob);
-      a.href=url;
-      a.click();
-      setTimeout(()=>URL.revokeObjectURL(url),1000);
-    }, 'image/jpeg', state.hqExport?0.98:(state.clean?0.96:0.94));
+      alert('This photo is too large for full-quality export in this browser. Try closing other tabs, or choose an Instagram export size.');
+    }
   });
 });
 
