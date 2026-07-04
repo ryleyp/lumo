@@ -320,6 +320,9 @@
           <option value="png">PNG · lossless</option>
         </select>
       </div>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="bestQualityBtn" disabled>Best quality</button>
+      </div>
       <div class="btns">
         <button class="act" id="resetBtn" disabled>Reset</button>
         <button class="act primary" id="saveBtn" disabled>Save</button>
@@ -1013,7 +1016,7 @@ function setupImage(img){
   canvas.style.display='block';
   $('#drop').style.display='none';
   stage.classList.remove('empty');
-  $('#saveBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
+  $('#saveBtn').disabled=false; $('#bestQualityBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
   cmpHint.style.display='block';
   render(false);
   updateHint(); placeHandle();
@@ -1430,8 +1433,18 @@ $('#resetBtn').addEventListener('click', ()=>{
 });
 $('#presetBtn').addEventListener('click', saveCustomPreset);
 
-$('#saveBtn').addEventListener('click', ()=>{
+function exportWarningMessage(out){
+  if(!srcImage || out.width===srcImage.width && out.height===srcImage.height) return '';
+  return `Export size is ${out.width} x ${out.height}.\nImported photo is ${srcImage.width} x ${srcImage.height}.\n\nContinue saving?`;
+}
+function saveCurrentExport(bestQuality=false){
+  if(bestQuality){
+    state.exportFormat='png';
+    syncMainControls();
+  }
   render(false);   // make sure canvas holds the full-res result
+  const warning=exportWarningMessage(canvas);
+  if(warning && !confirm(warning)) return;
   const a=document.createElement('a');
   const png=state.exportFormat==='png';
   a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
@@ -1442,7 +1455,9 @@ $('#saveBtn').addEventListener('click', ()=>{
     a.click();
     setTimeout(()=>URL.revokeObjectURL(url),1000);
   }, png?'image/png':'image/jpeg', png?undefined:EXPORT_JPEG_QUALITY);
-});
+}
+$('#saveBtn').addEventListener('click', ()=>saveCurrentExport(false));
+$('#bestQualityBtn').addEventListener('click', ()=>saveCurrentExport(true));
 </script>
 </body>
 </html>

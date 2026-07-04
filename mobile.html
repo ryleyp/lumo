@@ -471,6 +471,9 @@
         <span>Maximum quality</span>
         <label class="switch"><input type="checkbox" id="hqExport" checked><span class="track"></span></label>
       </div>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="bestQualityBtn" type="button" disabled>Best quality</button>
+      </div>
       <div class="btns">
         <button class="act" id="resetBtn" disabled>Reset</button>
         <button class="act primary" id="saveBtn" disabled>Save</button>
@@ -1258,7 +1261,7 @@ function setupImage(img){
   canvas.style.display='block';
   $('#drop').style.display='none';
   stage.classList.remove('empty');
-  $('#saveBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
+  $('#saveBtn').disabled=false; $('#bestQualityBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
   $('#saveLookBtn').disabled=false;
   $('#compareBtn').disabled=false;
   cmpHint.style.display='block';
@@ -1887,12 +1890,42 @@ function renderOriginalExportCanvas(){
   return outCanvas;
 }
 
-$('#saveBtn').addEventListener('click', ()=>{
+function sourceDimensions(){
+  return sourceImage
+    ? {w:sourceImage.naturalWidth,h:sourceImage.naturalHeight}
+    : srcImage ? {w:srcImage.width,h:srcImage.height} : null;
+}
+function exportChangeReasons(){
+  const reasons=[];
+  if(state.exportSize!=='original') reasons.push('export size is set for social media');
+  if(state.cropMode!=='free') reasons.push('crop is applied');
+  if(Math.abs(state.straighten)>0.001) reasons.push('straighten is applied');
+  return reasons;
+}
+function exportWarningMessage(out){
+  const src=sourceDimensions();
+  if(!src || out.width===src.w && out.height===src.h) return '';
+  const reasons=exportChangeReasons();
+  const why=reasons.length ? '\n\nThis is usually caused by: '+reasons.join(', ')+'.' : '';
+  return `Export size is ${out.width} x ${out.height}.\nImported photo is ${src.w} x ${src.h}.${why}\n\nContinue saving?`;
+}
+function saveCurrentExport(bestQuality=false){
+  if(bestQuality){
+    state.exportSize='original';
+    state.exportFormat='png';
+    state.hqExport=true;
+    syncMainControls();
+  }
   setBusy(true);
   requestAnimationFrame(()=>{
     try{
       const base=renderOriginalExportCanvas();
       const out=makeExportCanvas(base);
+      const warning=exportWarningMessage(out);
+      if(warning && !confirm(warning)){
+        setBusy(false);
+        return;
+      }
       const a=document.createElement('a');
       const png=state.exportFormat==='png';
       a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
@@ -1910,7 +1943,9 @@ $('#saveBtn').addEventListener('click', ()=>{
       alert('This photo is too large for full-quality export in this browser. Try closing other tabs, or choose an Instagram export size.');
     }
   });
-});
+}
+$('#saveBtn').addEventListener('click', ()=>saveCurrentExport(false));
+$('#bestQualityBtn').addEventListener('click', ()=>saveCurrentExport(true));
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load', ()=>{
