@@ -180,7 +180,7 @@
 <main>
   <div class="stage empty" id="stage">
     <div class="drop" id="drop">
-      <div class="big" id="dropMsg">Drop a photo here or click to choose</div>
+      <div class="big" id="dropMsg">Drop, paste, or click to choose</div>
       <div>JPG / PNG / HEIC · processed locally in your browser</div>
     </div>
     <div class="image-wrap" id="imageWrap">
@@ -1233,6 +1233,8 @@ function showOriginal(){
 
 /* ---------- Image loading ---------- */
 const isHeic = f => /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
+const IMAGE_FILE_RE = /\.(jpe?g|png|webp|gif|bmp|tiff?|avif)$/i;
+const DROP_READY_MESSAGE = 'Drop, paste, or click to choose';
 
 /* HEIC decoder (heic2any, WASM) — loaded lazily, only if the
    browser can't decode HEIC itself (Safari can; Chrome can't).
@@ -1263,9 +1265,52 @@ function decodeBlob(b){
   });
 }
 function dropMsg(t){ const el=$('#dropMsg'); if(el) el.textContent=t; }
+function isSupportedImageFile(f){
+  if(!f) return false;
+  const type=(f.type||'').toLowerCase();
+  const name=(f.name||'').toLowerCase();
+  return type.startsWith('image/') || isHeic(f) || IMAGE_FILE_RE.test(name);
+}
+function pasteTargetIsTextEntry(){
+  const el=document.activeElement;
+  if(!el) return false;
+  if(el.isContentEditable) return true;
+  if(el.tagName==='TEXTAREA') return true;
+  if(el.tagName!=='INPUT') return false;
+  return ['text','search','email','url','tel','password','number'].includes((el.type||'text').toLowerCase());
+}
+function clipboardImageFile(data){
+  if(!data) return null;
+  const files=Array.from(data.files||[]);
+  const direct=files.find(isSupportedImageFile);
+  if(direct) return direct;
+  for(const item of Array.from(data.items||[])){
+    if(item.kind!=='file') continue;
+    const type=(item.type||'').toLowerCase();
+    if(!type.startsWith('image/') && !/hei[cf]/.test(type)) continue;
+    const file=item.getAsFile();
+    if(isSupportedImageFile(file)) return file;
+  }
+  return null;
+}
+async function loadPastedImage(e){
+  if(pasteTargetIsTextEntry()) return;
+  const file=clipboardImageFile(e.clipboardData);
+  if(!file) return;
+  e.preventDefault();
+  dropMsg('Pasting photo…');
+  try{
+    await loadFile(file);
+  }catch(err){
+    console.error('paste failed:', err);
+    alert('Could not open the pasted image.');
+  }finally{
+    if(!srcImage) dropMsg(DROP_READY_MESSAGE);
+  }
+}
 
 async function loadFile(f){
-  if(!f || (!f.type.startsWith('image') && !isHeic(f))) return;
+  if(!isSupportedImageFile(f)) return;
   try{
     // try the browser's native decoder first (Safari handles HEIC)
     const img=await decodeBlob(f);
@@ -1280,7 +1325,7 @@ async function loadFile(f){
       const img=await decodeBlob(converted);
       setupImage(img); URL.revokeObjectURL(img.src);
     }catch(err){
-      dropMsg('Drop a photo here or click to choose');
+      dropMsg(DROP_READY_MESSAGE);
       alert('Could not decode this HEIC file: '+err.message);
     }
   }
@@ -2132,6 +2177,7 @@ $('#maskAiBtn').addEventListener('click', ()=>{
 $('#chooseBtn').addEventListener('click', ()=>fileInput.click());
 stage.addEventListener('click', ()=>{ if(!srcImage) fileInput.click(); });
 fileInput.addEventListener('change', e=>loadFile(e.target.files[0]));
+window.addEventListener('paste', loadPastedImage);
 
 ['dragover','dragenter'].forEach(ev=>stage.addEventListener(ev,e=>e.preventDefault()));
 stage.addEventListener('drop', e=>{ e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
