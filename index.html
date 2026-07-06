@@ -731,6 +731,10 @@ const PRESETS = {
 const DEFAULT_INTENSITY = 0.75;
 const MAX_PHOTO_EDGE = 6048;
 const MAX_PHOTO_PIXELS = 26000000;
+const PREVIEW_EDGE = 700;
+const AUTO_FULL_RENDER_PIXELS = 5200000;
+const FULL_RENDER_IDLE_DELAY = 1200;
+const FULL_RENDER_IDLE_TIMEOUT = 2600;
 const EXPORT_JPEG_QUALITY = 0.97;
 const EXPORT_JPEG_BEST_QUALITY = 0.99;
 const state = {
@@ -796,8 +800,10 @@ function clonePreset(name){
 let params = clonePreset('smart');
 let currentPreset = 'smart';
 let fullBuf = null, smallBuf = null, srcImage = null, baseCanvas = null, sourcePhotoSize = null;
-let holding = false, fullTimer = null, geometryTimer = null, applyingHistory = false;
+let holding = false, fullTimer = null, fullIdle = null, fullIdleType = '', geometryTimer = null, applyingHistory = false;
+let renderVersion = 0;
 const tmpCanvas = document.createElement('canvas');
+const comparePreviewCanvas = document.createElement('canvas');
 const history = { stack:[], index:-1 };
 const CUSTOM_PRESET_KEY = 'lumo.customPresets.v1';
 const PRESET_SHARE_VERSION = 1;
@@ -880,6 +886,54 @@ function ensureBlur(buf,key,div){
 function ensureRadial(buf){
   if(!buf.radial) buf.radial=makeRadial(buf.img.width,buf.img.height);
   return buf.radial;
+}
+function fullRenderPixelCount(){
+  return fullBuf ? fullBuf.img.width * fullBuf.img.height : 0;
+}
+function cancelScheduledFullRender(){
+  clearTimeout(fullTimer);
+  fullTimer=null;
+  if(fullIdle!==null){
+    if(fullIdleType==='idle' && window.cancelIdleCallback) window.cancelIdleCallback(fullIdle);
+    if(fullIdleType==='timeout') clearTimeout(fullIdle);
+    fullIdle=null;
+    fullIdleType='';
+  }
+}
+function scheduleFullRender(delay=FULL_RENDER_IDLE_DELAY){
+  cancelScheduledFullRender();
+  if(!fullBuf || smallBuf===fullBuf) return;
+  if(fullRenderPixelCount()>AUTO_FULL_RENDER_PIXELS) return;
+  const ticket=renderVersion;
+  fullTimer=setTimeout(()=>{
+    fullTimer=null;
+    const run=()=>{
+      fullIdle=null;
+      fullIdleType='';
+      if(ticket!==renderVersion || holding || !fullBuf) return;
+      render(false);
+    };
+    if(window.requestIdleCallback){
+      fullIdle=window.requestIdleCallback(run,{timeout:FULL_RENDER_IDLE_TIMEOUT});
+      fullIdleType='idle';
+    }else{
+      fullIdle=setTimeout(run,0);
+      fullIdleType='timeout';
+    }
+  },delay);
+}
+function updateComparePreviewSource(){
+  if(smallBuf && smallBuf!==fullBuf){
+    comparePreviewCanvas.width=smallBuf.img.width;
+    comparePreviewCanvas.height=smallBuf.img.height;
+    comparePreviewCanvas.getContext('2d').putImageData(smallBuf.img,0,0);
+  }else{
+    comparePreviewCanvas.width=0;
+    comparePreviewCanvas.height=0;
+  }
+}
+function hasSubjectMask(){
+  return !!(fullBuf && (fullBuf.mask || (smallBuf && smallBuf.mask)));
 }
 function hashNoise(n){
   n=(n^61)^(n>>>16);
@@ -1096,11 +1150,24 @@ function process(buf){
   return out;
 }
 
-/* fast=true renders the small buffer and scales it up — used
-   while dragging; a full-res render follows shortly after. */
+function ensureFullMaskFromPreview(){
+  if(!fullBuf || fullBuf.mask || !smallBuf || smallBuf===fullBuf || !smallBuf.mask) return;
+  const w=fullBuf.img.width, h=fullBuf.img.height;
+  const sw=smallBuf.img.width, sh=smallBuf.img.height;
+  const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
+  sc.getContext('2d').putImageData(maskToImageData(smallBuf.mask,sw,sh),0,0);
+  const fc=document.createElement('canvas'); fc.width=w; fc.height=h;
+  const fctx=fc.getContext('2d'); fctx.imageSmoothingEnabled=true;
+  fctx.drawImage(sc,0,0,w,h);
+  fullBuf.mask=imageDataToMask(fctx.getImageData(0,0,w,h));
+}
+
+/* fast=true renders the small buffer and scales it up. Large photos
+   stay in this preview path while editing; save/export renders full. */
 function render(fast){
   const buf = fast ? smallBuf : fullBuf;
   if(!buf) return;
+  if(!fast) ensureFullMaskFromPreview();
   const out = process(buf);
   if(fast && buf!==fullBuf){
     tmpCanvas.width=out.width; tmpCanvas.height=out.height;
@@ -1110,16 +1177,21 @@ function render(fast){
   }else{
     ctx.putImageData(out,0,0);
   }
-  drawCompareOverlay();
+  drawCompareOverlay(fast && buf!==fullBuf);
   placeCompareLine();
   renderMaskOverlay();
 }
 function renderPreview(){
+  renderVersion++;
   render(true);
-  clearTimeout(fullTimer);
-  fullTimer=setTimeout(()=>render(false),180);
+  scheduleFullRender();
 }
-function drawCompareOverlay(){
+function renderFullNow(){
+  renderVersion++;
+  cancelScheduledFullRender();
+  render(false);
+}
+function drawCompareOverlay(fast=false){
   if(!srcImage || state.compare>=100) return;
   const clipW=Math.round(canvas.width*(1-state.compare/100));
   if(clipW<=0) return;
@@ -1127,7 +1199,12 @@ function drawCompareOverlay(){
   ctx.beginPath();
   ctx.rect(0,0,clipW,canvas.height);
   ctx.clip();
-  ctx.putImageData(srcImage,0,0);
+  if(fast && comparePreviewCanvas.width){
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(comparePreviewCanvas,0,0,canvas.width,canvas.height);
+  }else{
+    ctx.putImageData(srcImage,0,0);
+  }
   ctx.restore();
 }
 function placeCompareLine(){
@@ -1144,7 +1221,13 @@ function placeCompareLine(){
 }
 function showOriginal(){
   if(!srcImage) return;
-  ctx.putImageData(srcImage,0,0);
+  cancelScheduledFullRender();
+  if(comparePreviewCanvas.width){
+    ctx.imageSmoothingEnabled=true;
+    ctx.drawImage(comparePreviewCanvas,0,0,canvas.width,canvas.height);
+  }else{
+    ctx.putImageData(srcImage,0,0);
+  }
   compareLine.style.display='none';
 }
 
@@ -1203,9 +1286,9 @@ async function loadFile(f){
   }
 }
 function buildSmallBufferFromCanvas(c){
-  const SMALL=700, w=c.width, h=c.height;
-  if(Math.max(w,h)<=SMALL) return fullBuf;
-  const s=SMALL/Math.max(w,h);
+  const w=c.width, h=c.height;
+  if(Math.max(w,h)<=PREVIEW_EDGE) return fullBuf;
+  const s=PREVIEW_EDGE/Math.max(w,h);
   const sw=Math.max(1,Math.round(w*s)), sh=Math.max(1,Math.round(h*s));
   const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
   const sctx=sc.getContext('2d'); sctx.imageSmoothingEnabled=true;
@@ -1244,12 +1327,13 @@ function rebuildFromBase(){
   srcImage=wctx.getImageData(0,0,outW,outH);
   fullBuf=buildBuffers(srcImage);
   smallBuf=buildSmallBufferFromCanvas(work);
+  updateComparePreviewSource();
   canvas.width=outW; canvas.height=outH;
   maskCanvas.width=outW; maskCanvas.height=outH;
   imageWrap.style.display='block';
   resetMasksForGeometry();
   applyViewTransform();
-  render(false);
+  renderPreview();
   updateHint(); placeHandle(); placeCompareLine();
   if(usesMask()) computeMasks();
 }
@@ -1340,30 +1424,25 @@ function imageDataToMask(id){
 }
 
 async function computeMasks(){
-  if(!fullBuf || fullBuf.mask || maskFailed) return;
-  const w=fullBuf.img.width, h=fullBuf.img.height;
+  if(!fullBuf || maskFailed) return;
+  if(fullBuf.mask && smallBuf && smallBuf!==fullBuf && !smallBuf.mask) syncSmallMaskFromFull();
+  if(hasSubjectMask()) return;
+  const segBuf=(smallBuf && smallBuf!==fullBuf) ? smallBuf : fullBuf;
+  const w=segBuf.img.width, h=segBuf.img.height;
   try{
     cmpHint.textContent='Finding subject…';
     const seg=await getSegmenter();
     if(!fullBuf) return;                       // image replaced meanwhile
     const c=document.createElement('canvas'); c.width=w; c.height=h;
-    c.getContext('2d').putImageData(fullBuf.img,0,0);
+    c.getContext('2d').putImageData(segBuf.img,0,0);
     const res=seg.segment(c);
     const cm=res.confidenceMasks;
     const raw=(cm.length>1?cm[1]:cm[0]).getAsFloat32Array();
     const feathered=makeBlur(maskToImageData(raw,w,h),w,h,6); // soft edges
-    fullBuf.mask=imageDataToMask(feathered);
-    if(smallBuf!==fullBuf){
-      const mc=document.createElement('canvas'); mc.width=w; mc.height=h;
-      mc.getContext('2d').putImageData(feathered,0,0);
-      const sw=smallBuf.img.width, sh=smallBuf.img.height;
-      const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
-      const sctx=sc.getContext('2d'); sctx.imageSmoothingEnabled=true;
-      sctx.drawImage(mc,0,0,sw,sh);
-      smallBuf.mask=imageDataToMask(sctx.getImageData(0,0,sw,sh));
-    }
+    segBuf.mask=imageDataToMask(feathered);
     if(res.close) res.close();
-    updateHint(); render(false);
+    if(segBuf===fullBuf) syncSmallMaskFromFull();
+    updateHint(); renderPreview();
   }catch(e){
     maskFailed=true;
     console.warn('segmentation unavailable:',e.message||e);
@@ -1384,7 +1463,7 @@ function syncSmallMaskFromFull(){
 function ensureEditableMask(){
   if(!fullBuf) return null;
   if(!fullBuf.mask) fullBuf.mask=new Float32Array(ensureRadial(fullBuf));
-  syncSmallMaskFromFull();
+  if(smallBuf && smallBuf!==fullBuf && !smallBuf.mask) smallBuf.mask=new Float32Array(ensureRadial(smallBuf));
   return fullBuf.mask;
 }
 function renderMaskOverlay(){
@@ -1393,9 +1472,10 @@ function renderMaskOverlay(){
     maskCanvas.style.pointerEvents='none';
     return;
   }
-  const mask=fullBuf.mask||ensureRadial(fullBuf);
+  const overlayBuf=(smallBuf && smallBuf!==fullBuf) ? smallBuf : fullBuf;
+  const mask=overlayBuf.mask||ensureRadial(overlayBuf);
   if(!mask) return;
-  const w=fullBuf.img.width, h=fullBuf.img.height;
+  const w=overlayBuf.img.width, h=overlayBuf.img.height;
   const id=new ImageData(w,h);
   for(let i=0;i<w*h;i++){
     const a=Math.round(mask[i]*112);
@@ -1416,13 +1496,9 @@ function canvasPoint(ev){
     y:clamp(Math.round((ev.clientY-cr.top)/cr.height*canvas.height),0,canvas.height-1)
   };
 }
-function paintMask(ev){
-  const mask=ensureEditableMask();
-  if(!mask) return;
-  const pt=canvasPoint(ev), w=fullBuf.img.width, h=fullBuf.img.height;
-  const r=maskState.size, r2=r*r, x0=Math.max(0,pt.x-r), x1=Math.min(w-1,pt.x+r);
+function paintMaskInto(mask,w,h,pt,r,add){
+  const r2=r*r, x0=Math.max(0,pt.x-r), x1=Math.min(w-1,pt.x+r);
   const y0=Math.max(0,pt.y-r), y1=Math.min(h-1,pt.y+r);
-  const add=maskState.mode==='add';
   for(let y=y0;y<=y1;y++){
     for(let x=x0;x<=x1;x++){
       const dx=x-pt.x, dy=y-pt.y, d2=dx*dx+dy*dy;
@@ -1431,7 +1507,23 @@ function paintMask(ev){
       mask[idx]=add ? clamp(mask[idx]+strength,0,1) : clamp(mask[idx]-strength,0,1);
     }
   }
-  syncSmallMaskFromFull();
+}
+function paintMask(ev){
+  const mask=ensureEditableMask();
+  if(!mask) return;
+  const pt=canvasPoint(ev), w=fullBuf.img.width, h=fullBuf.img.height;
+  const add=maskState.mode==='add';
+  paintMaskInto(mask,w,h,pt,maskState.size,add);
+  if(smallBuf && smallBuf!==fullBuf){
+    if(!smallBuf.mask) smallBuf.mask=new Float32Array(ensureRadial(smallBuf));
+    const sw=smallBuf.img.width, sh=smallBuf.img.height;
+    const scale=Math.max(sw/w,sh/h);
+    const spt={
+      x:clamp(Math.round(pt.x*sw/w),0,sw-1),
+      y:clamp(Math.round(pt.y*sh/h),0,sh-1)
+    };
+    paintMaskInto(smallBuf.mask,sw,sh,spt,Math.max(1,Math.round(maskState.size*scale)),add);
+  }
   renderPreview();
 }
 maskCanvas.addEventListener('pointerdown', e=>{
@@ -1443,7 +1535,7 @@ maskCanvas.addEventListener('pointerdown', e=>{
   const up=ev=>{
     maskCanvas.removeEventListener('pointermove',move);
     maskCanvas.removeEventListener('pointerup',up);
-    render(false);
+    renderPreview();
     commitHistory();
   };
   maskCanvas.addEventListener('pointermove',move);
@@ -1475,7 +1567,7 @@ lightHandle.addEventListener('pointerdown', e=>{
   const up=ev=>{
     lightHandle.removeEventListener('pointermove',move);
     lightHandle.removeEventListener('pointerup',up);
-    render(false);
+    renderPreview();
     commitHistory();
   };
   lightHandle.addEventListener('pointermove',move);
@@ -1880,7 +1972,7 @@ function updateHint(){
   if(lightActive()){
     cmpHint.textContent='Hold to compare · drag ☀ to move the light';
   }else if(usesMask()){
-    cmpHint.textContent = (fullBuf&&fullBuf.mask)
+    cmpHint.textContent = hasSubjectMask()
       ? 'Hold to compare · AI subject detected'
       : maskFailed
         ? 'Hold to compare · center focus (run start-lumo.command for AI)'
@@ -1906,7 +1998,7 @@ function selectPreset(id){
   $('#tunePreset').textContent=el?el.querySelector('.name').textContent:(CUSTOM_PRESET_NAMES[id]||id);
   syncSliders(); syncLightControlsFromParams();
   updateHint(); placeHandle();
-  render(false);
+  renderPreview();
   if(usesMask()) computeMasks();
   commitHistory();
 }
@@ -1944,7 +2036,7 @@ $('#focus').addEventListener('change', e=>{
   state.focus=e.target.checked;
   updateHint();
   if(state.focus) computeMasks();          // computes once, then cached
-  render(false);
+  renderPreview();
   commitHistory();
 });
 $('#lightModes').addEventListener('click', e=>{
@@ -2003,7 +2095,7 @@ $('#zoom').addEventListener('change', commitHistory);
 $('#compare').addEventListener('input', e=>{
   state.compare=+e.target.value;
   $('#compareVal').textContent=state.compare===100?'Edited':state.compare===0?'Original':state.compare+'%';
-  render(false);
+  renderPreview();
 });
 $('#compare').addEventListener('change', commitHistory);
 $('#maskOverlay').addEventListener('change', e=>{
@@ -2033,7 +2125,7 @@ $('#brushSize').addEventListener('change', commitHistory);
 $('#maskAiBtn').addEventListener('click', ()=>{
   if(fullBuf){ delete fullBuf.mask; if(smallBuf&&smallBuf!==fullBuf) delete smallBuf.mask; maskFailed=false; }
   computeMasks();
-  render(false);
+  renderPreview();
   commitHistory();
 });
 
@@ -2045,9 +2137,9 @@ fileInput.addEventListener('change', e=>loadFile(e.target.files[0]));
 stage.addEventListener('drop', e=>{ e.preventDefault(); loadFile(e.dataTransfer.files[0]); });
 
 canvas.addEventListener('mousedown', ()=>{holding=true;showOriginal();});
-window.addEventListener('mouseup', ()=>{ if(holding){holding=false;render(false);} });
+window.addEventListener('mouseup', ()=>{ if(holding){holding=false;renderPreview();} });
 canvas.addEventListener('touchstart', ()=>{holding=true;showOriginal();},{passive:true});
-canvas.addEventListener('touchend', ()=>{ if(holding){holding=false;render(false);} });
+canvas.addEventListener('touchend', ()=>{ if(holding){holding=false;renderPreview();} });
 
 $('#resetBtn').addEventListener('click', ()=>{
   params=clonePreset(currentPreset);          // revert edits to preset defaults
@@ -2063,8 +2155,7 @@ $('#resetBtn').addEventListener('click', ()=>{
   if(fullBuf){ delete fullBuf.mask; if(smallBuf&&smallBuf!==fullBuf) delete smallBuf.mask; maskFailed=false; }
   syncMainControls(); syncSliders(); syncLightControlsFromParams(); applyViewTransform();
   rebuildFromBase();
-  updateHint(); placeHandle(); render(false);
-  if(usesMask()) computeMasks();
+  updateHint(); placeHandle();
   commitHistory();
 });
 $('#presetBtn').addEventListener('click', saveCustomPreset);
@@ -2096,7 +2187,7 @@ function saveCurrentExport(bestQuality=false){
   setSavingUI(true);
   try{
     state.compare=100;
-    render(false);
+    renderFullNow();
     requestAnimationFrame(()=>{
       try{
         const a=document.createElement('a');
@@ -2107,7 +2198,7 @@ function saveCurrentExport(bestQuality=false){
         canvas.toBlob(blob=>{
           state.compare=priorCompare;
           syncGeometryControls();
-          render(false);
+          renderPreview();
           setSavingUI(false);
           if(!blob){ failExport(new Error('empty blob')); return; }
           const url=URL.createObjectURL(blob);
@@ -2120,7 +2211,7 @@ function saveCurrentExport(bestQuality=false){
       }catch(err){
         state.compare=priorCompare;
         syncGeometryControls();
-        render(false);
+        renderPreview();
         setSavingUI(false);
         failExport(err);
       }
@@ -2128,7 +2219,7 @@ function saveCurrentExport(bestQuality=false){
   }catch(err){
     state.compare=priorCompare;
     syncGeometryControls();
-    render(false);
+    renderPreview();
     setSavingUI(false);
     failExport(err);
   }
