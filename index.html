@@ -38,7 +38,7 @@
   .dot{width:7px;height:7px;border-radius:50%;background:#5bd674;box-shadow:0 0 8px #5bd674}
 
   main{
-    display:grid;grid-template-columns:1fr 320px;gap:18px;
+    display:grid;grid-template-columns:1fr 340px;gap:18px;
     padding:18px 22px;max-width:1200px;margin:0 auto;
   }
   @media (max-width:840px){ main{grid-template-columns:1fr} }
@@ -52,10 +52,22 @@
   .stage.empty{cursor:pointer}
   .drop{text-align:center;color:var(--muted);padding:40px;pointer-events:none}
   .drop .big{font-size:15px;color:var(--text);margin-bottom:6px}
-  #canvas{max-width:100%;max-height:74vh;display:none;border-radius:10px}
+  .image-wrap{
+    position:relative;display:none;line-height:0;max-width:100%;max-height:74vh;
+    transform-origin:center center;transition:transform .12s ease;
+  }
+  #canvas{max-width:100%;max-height:74vh;display:block;border-radius:10px}
+  #maskCanvas{
+    position:absolute;inset:0;width:100%;height:100%;border-radius:10px;
+    display:none;pointer-events:none;
+  }
   .compare-hint{
     position:absolute;bottom:10px;left:10px;font-size:11.5px;color:var(--muted);
     background:rgba(0,0,0,.45);padding:5px 9px;border-radius:8px;display:none;
+  }
+  .compare-line{
+    position:absolute;top:0;width:2px;background:rgba(255,255,255,.78);
+    box-shadow:0 0 8px rgba(0,0,0,.55);display:none;pointer-events:none;z-index:2;
   }
   .light-handle{
     position:absolute;width:26px;height:26px;border-radius:50%;
@@ -93,6 +105,9 @@
   .sw-dazz-d3d{background:linear-gradient(135deg,#e9f3ff,#9fb7d8 45%,#252b3a)}
   .sw-dazz-nt16{background:linear-gradient(135deg,#d9ded0,#9a9f86 45%,#2f332d)}
   .sw-dazz-classicu{background:linear-gradient(135deg,#f8fbff,#cdd8e0 42%,#303846)}
+  .sw-powershot{background:linear-gradient(135deg,#f8efe0,#d6c0a1 42%,#45515f)}
+  .sw-rx100{background:linear-gradient(135deg,#f7fbff,#c8d6df 40%,#111820)}
+  .sw-p7000{background:linear-gradient(135deg,#e8e3d8,#9fac8d 45%,#242824)}
   .preset .name{font-size:12px;font-weight:600}
   .preset .sub{font-size:10.5px;color:var(--muted);margin-top:2px}
   details.card{padding:0}
@@ -116,6 +131,8 @@
   #sliders .slider-row{margin-top:12px}
   #sliders .slider-row b{font-variant-numeric:tabular-nums}
   .toggle-row{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:var(--muted);margin-top:12px}
+  .mini-row{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .mini-row .slider-row{flex:1;margin-top:0}
   .select-row{margin:0 0 12px}
   .select-row label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:7px}
   select.text-input{
@@ -137,13 +154,18 @@
   .seg-btn.active{border-color:var(--accent);color:var(--text);box-shadow:0 0 0 1px rgba(233,196,106,.45) inset}
 
   .btns{display:flex;gap:8px}
+  .btns + .btns{margin-top:8px}
+  .tool-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .tool-grid.three{grid-template-columns:repeat(3,1fr)}
   button.act{
     flex:1;border:1px solid var(--line);background:var(--panel-2);color:var(--text);
     padding:11px;border-radius:11px;font-size:13px;cursor:pointer;transition:.15s;font-weight:600;
   }
+  .tool-grid button.act{padding:9px 6px;font-size:12px}
   button.act:hover:not(:disabled){border-color:#3a4051}
-  button.act.primary{background:var(--accent);color:#241f10;border-color:var(--accent)}
+  button.act.primary, button.act.active{background:var(--accent);color:#241f10;border-color:var(--accent)}
   button.act:disabled{opacity:.4;cursor:not-allowed}
+  .hidden{display:none!important}
   .foot{color:var(--muted);font-size:11px;text-align:center;padding:8px 0 18px;line-height:1.5}
   input[type=file]{display:none}
 </style>
@@ -161,8 +183,12 @@
       <div class="big" id="dropMsg">Drop a photo here or click to choose</div>
       <div>JPG / PNG / HEIC · processed locally in your browser</div>
     </div>
-    <canvas id="canvas"></canvas>
+    <div class="image-wrap" id="imageWrap">
+      <canvas id="canvas"></canvas>
+      <canvas id="maskCanvas"></canvas>
+    </div>
     <div class="light-handle" id="lightHandle" title="Drag to move the light"></div>
+    <div class="compare-line" id="compareLine"></div>
     <div class="compare-hint" id="cmpHint"></div>
   </div>
 
@@ -192,7 +218,7 @@
         </div>
         <div class="preset" data-preset="g7x">
           <div class="swatch sw-g7x"></div>
-          <div class="name">G7X Flash</div>
+          <div class="name">Canon G7X</div>
           <div class="sub">flash · punchy</div>
         </div>
         <div class="preset" data-preset="pecra">
@@ -256,6 +282,42 @@
       </div>
     </details>
 
+    <details class="card" id="digicamCard" open>
+      <summary>Digicam cameras</summary>
+      <div class="details-body">
+        <div class="presets" id="digicamPresets">
+          <div class="preset" data-preset="g7x">
+            <div class="swatch sw-g7x"></div>
+            <div class="name">Canon G7X</div>
+            <div class="sub">flash · glossy</div>
+          </div>
+          <div class="preset" data-preset="powershot">
+            <div class="swatch sw-powershot"></div>
+            <div class="name">Canon PowerShot</div>
+            <div class="sub">CCD · warm</div>
+          </div>
+          <div class="preset" data-preset="rx100">
+            <div class="swatch sw-rx100"></div>
+            <div class="name">Sony RX100</div>
+            <div class="sub">crisp · clean</div>
+          </div>
+          <div class="preset" data-preset="p7000">
+            <div class="swatch sw-p7000"></div>
+            <div class="name">Nikon P7000</div>
+            <div class="sub">neutral · rich</div>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="card">
+      <h2>History</h2>
+      <div class="btns">
+        <button class="act" id="undoBtn" disabled>Undo</button>
+        <button class="act" id="redoBtn" disabled>Redo</button>
+      </div>
+    </div>
+
     <div class="card">
       <h2>Adjust</h2>
       <div class="slider-row">
@@ -273,6 +335,53 @@
       <div class="toggle-row">
         <span>AI Focus <span style="opacity:.7">· pop the subject</span></span>
         <label class="switch"><input type="checkbox" id="focus"><span class="track"></span></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Crop &amp; View</h2>
+      <div class="tool-grid">
+        <button class="act active" data-aspect="original" data-needs-image>Original</button>
+        <button class="act" data-aspect="1" data-needs-image>1:1</button>
+        <button class="act" data-aspect="0.8" data-needs-image>4:5</button>
+        <button class="act" data-aspect="0.5625" data-needs-image>9:16</button>
+      </div>
+      <div class="btns">
+        <button class="act" id="rotateLeftBtn" data-needs-image>Rotate left</button>
+        <button class="act" id="rotateRightBtn" data-needs-image>Rotate right</button>
+      </div>
+      <div class="slider-row">
+        <label>Straighten <b id="straightVal">0°</b></label>
+        <input type="range" id="straighten" min="-10" max="10" step="0.1" value="0" data-needs-image />
+      </div>
+      <div class="slider-row">
+        <label>Zoom <b id="zoomVal">100%</b></label>
+        <input type="range" id="zoom" min="100" max="250" step="5" value="100" data-needs-image />
+      </div>
+      <div class="slider-row">
+        <label>Before / After <b id="compareVal">Edited</b></label>
+        <input type="range" id="compare" min="0" max="100" step="1" value="100" data-needs-image />
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>AI Mask</h2>
+      <div class="toggle-row">
+        <span>Overlay</span>
+        <label class="switch"><input type="checkbox" id="maskOverlay" data-needs-image><span class="track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <span>Brush edit</span>
+        <label class="switch"><input type="checkbox" id="maskBrush" data-needs-image><span class="track"></span></label>
+      </div>
+      <div class="tool-grid three" style="margin-top:10px">
+        <button class="act active" id="maskAddBtn" data-mask-mode="add" data-needs-image>Add</button>
+        <button class="act" id="maskEraseBtn" data-mask-mode="erase" data-needs-image>Erase</button>
+        <button class="act" id="maskAiBtn" data-needs-image>AI</button>
+      </div>
+      <div class="slider-row">
+        <label>Brush size <b id="brushVal">36</b></label>
+        <input type="range" id="brushSize" min="8" max="120" step="2" value="36" data-needs-image />
       </div>
     </div>
 
@@ -313,6 +422,13 @@
       <div class="btns" style="margin-bottom:8px">
         <button class="act" id="presetBtn" disabled>Save preset</button>
       </div>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="sharePresetBtn">Share filter</button>
+        <button class="act" id="importPresetBtn">Import filters</button>
+      </div>
+      <div class="btns" style="margin-bottom:8px">
+        <button class="act" id="exportPresetsBtn">Export saved filters</button>
+      </div>
       <div class="select-row">
         <label>Export format</label>
         <select class="text-input" id="exportFormat">
@@ -336,12 +452,15 @@
 </main>
 
 <input type="file" id="file" accept="image/*,.heic,.heif,image/heic,image/heif" />
+<input type="file" id="presetFile" accept=".json,application/json" />
 
 <script>
 'use strict';
 const $ = s => document.querySelector(s);
-const stage = $('#stage'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
-const fileInput = $('#file'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint');
+const stage = $('#stage'), imageWrap = $('#imageWrap'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
+const maskCanvas = $('#maskCanvas'), maskCtx = maskCanvas.getContext('2d');
+const fileInput = $('#file'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint'), compareLine = $('#compareLine');
+const presetFileInput = $('#presetFile');
 
 /* ============================================================
    Color science
@@ -466,6 +585,37 @@ const PRESETS = {
     relight:0.03, relightWarm:-0.03, lightRadius:0.38, falloff:0.72, dirLight:0.04, bgFalloff:0.24,
     shadowTint:[-4,0,6], highlightTint:[0,2,4]
   },
+  powershot: { // Canon PowerShot — warmer compact CCD color,
+               // lifted flash mids, soft highlights, visible sensor texture
+    exposure:0.18, rGain:1.05, gGain:1.00, bGain:0.94,
+    contrast:1.08, filmic:0.22, lift:0.025, sat:1.08, vibrance:0.08,
+    brightness:0.04, highlights:0.16, blackPoint:0.05,
+    bloom:0.08, bloomThresh:0.72, hal:0.02,
+    grain:0.16, grainFine:true, vignette:0.16, vignetteWarm:false, hotspot:0.28,
+    relight:0.05, relightWarm:0.04, lightRadius:0.44, falloff:0.62, dirLight:0.04, bgFalloff:0.20,
+    shadowTint:[3,2,-2], highlightTint:[8,4,-2]
+  },
+  rx100: { // Sony RX100 — clean Zeiss-like pocket camera crispness,
+           // cooler whites, restrained grain, tight contrast
+    exposure:0.22, rGain:0.98, gGain:1.00, bGain:1.04,
+    contrast:1.18, filmic:0.18, lift:0, sat:1.04, vibrance:0.12,
+    brightness:0.02, highlights:0.10, shadows:-0.06, blackPoint:0.10, whites:0.16,
+    soften:0,
+    bloom:0.04, bloomThresh:0.80, hal:0,
+    grain:0.05, grainFine:true, vignette:0.08, vignetteWarm:false, hotspot:0.10,
+    relight:0.02, relightWarm:-0.04, lightRadius:0.52, falloff:0.42, dirLight:0.12, bgFalloff:0.12,
+    shadowTint:[-3,1,6], highlightTint:[0,1,4]
+  },
+  p7000: { // Nikon P7000 — neutral enthusiast compact color,
+           // deeper greens, firm blacks, modest flash rolloff
+    exposure:0.12, rGain:1.00, gGain:1.02, bGain:0.98,
+    contrast:1.12, filmic:0.28, lift:0.01, sat:1.02, vibrance:0.10,
+    brightness:0.02, highlights:0.14, shadows:0.02, blackPoint:0.12, whites:0.08,
+    bloom:0.05, bloomThresh:0.76, hal:0.01,
+    grain:0.10, grainFine:true, vignette:0.12, vignetteWarm:false, hotspot:0.16,
+    relight:0.02, relightWarm:0.01, lightRadius:0.50, falloff:0.46, dirLight:0.08, bgFalloff:0.16,
+    shadowTint:[-1,4,-2], highlightTint:[3,3,0]
+  },
   pecra: {   // Pro Finish — Pecra-style pro camera look:
              // on-device AI separates subject from background, then
              // background gets bokeh + dim, subject gets clarity +
@@ -579,7 +729,10 @@ const PRESETS = {
    for live preview while dragging sliders / the light.
    ============================================================ */
 const DEFAULT_INTENSITY = 0.75;
-const EXPORT_JPEG_QUALITY = 0.99;
+const MAX_PHOTO_EDGE = 6048;
+const MAX_PHOTO_PIXELS = 26000000;
+const EXPORT_JPEG_QUALITY = 0.97;
+const EXPORT_JPEG_BEST_QUALITY = 0.99;
 const state = {
   intensity:DEFAULT_INTENSITY,
   focus:false,
@@ -591,8 +744,14 @@ const state = {
   lightSoftness:50,
   lightWarmth:0,
   lightBackdrop:45,
-  exportFormat:'jpeg'
+  exportFormat:'jpeg',
+  aspect:'original',
+  rotation:0,
+  straighten:0,
+  zoom:1,
+  compare:100
 };
+const maskState = { overlay:false, brush:false, mode:'add', size:36 };
 /* Global AI Focus: minimal-blur subject pop layered on any preset */
 const FOCUS = { bokeh:0.15, dim:0.10, lift:0.10, clarity:0.40 };
 
@@ -630,16 +789,18 @@ const paramDefault = k =>
   (k==='rGain'||k==='gGain'||k==='bGain'||k==='sat'||k==='contrast') ? 1 :
   (k==='lightRadius') ? 0.5 : 0;
 function clonePreset(name){
-  const p={...PRESETS[name]};                 // depth/tint arrays shared (never mutated)
+  const p=JSON.parse(JSON.stringify(PRESETS[name]||PRESETS.smart));
   for(const [k] of SKEYS) if(p[k]===undefined) p[k]=paramDefault(k);
   return p;
 }
 let params = clonePreset('smart');
 let currentPreset = 'smart';
-let fullBuf = null, smallBuf = null, srcImage = null;
-let holding = false, fullTimer = null;
+let fullBuf = null, smallBuf = null, srcImage = null, baseCanvas = null, sourcePhotoSize = null;
+let holding = false, fullTimer = null, geometryTimer = null, applyingHistory = false;
 const tmpCanvas = document.createElement('canvas');
+const history = { stack:[], index:-1 };
 const CUSTOM_PRESET_KEY = 'lumo.customPresets.v1';
+const PRESET_SHARE_VERSION = 1;
 const CUSTOM_PRESET_STATE = {};
 const CUSTOM_PRESET_NAMES = {};
 
@@ -706,13 +867,33 @@ function buildBuffers(imgData){
   const w=imgData.width, h=imgData.height;
   return {
     img: imgData,
-    blurA: makeBlur(imgData,w,h,8),    // bloom source
-    blurB: makeBlur(imgData,w,h,16),   // halation source (wider)
-    blurC: makeBlur(imgData,w,h,2),    // ~1px blur (AI Clarity unsharp)
-    grain: makeGrain(w,h),             // clumped film grain
-    noise: makeNoise(w*h),             // fine digital noise
-    radial: makeRadial(w,h)            // depth fallback mask
+    blurA: null,                       // bloom/depth source, built lazily
+    blurB: null,                       // halation source, built lazily
+    blurC: null,                       // AI Clarity source, built lazily
+    radial: null                       // depth fallback mask, built lazily
   };                                   // .mask added by segmentation
+}
+function ensureBlur(buf,key,div){
+  if(!buf[key]) buf[key]=makeBlur(buf.img,buf.img.width,buf.img.height,div);
+  return buf[key];
+}
+function ensureRadial(buf){
+  if(!buf.radial) buf.radial=makeRadial(buf.img.width,buf.img.height);
+  return buf.radial;
+}
+function hashNoise(n){
+  n=(n^61)^(n>>>16);
+  n=(n+(n<<3))|0;
+  n=n^(n>>>4);
+  n=Math.imul(n,0x27d4eb2d);
+  n=n^(n>>>15);
+  return ((n>>>0)/4294967295)-0.5;
+}
+function sampleGrain(idx,x,y,w,fine){
+  if(fine) return hashNoise(idx+7331);
+  const cw=(w>>1)+2;
+  const coarse=(y>>1)*cw+(x>>1);
+  return hashNoise(coarse+1337)*0.82 + hashNoise(idx+7331)*0.18;
 }
 
 /* ============================================================
@@ -744,13 +925,13 @@ function process(buf){
   const usePresetDepth = p.depth && amt>0;
   const depth = usePresetDepth ? p.depth : (state.focus ? FOCUS : null);
   const depthAmt = usePresetDepth ? amt : 1;
-  const mask=depth?(buf.mask||buf.radial):null;
+  const mask=depth?(buf.mask||ensureRadial(buf)):null;
   const soften=(p.soften||0)*amt*(state.clean?0.85:1);            // negative texture/clarity
   const vib=(p.vibrance||0)*amt*(state.clean?0.9:1);
   const doBloom=bloomAmt>0.004;
   const needDir=(rel+hot>0.001)&&(p.dirLight||0)>0;
-  const bA=(doBloom||depth||soften>0.004||needDir)?buf.blurA.data:null;
-  const bB=halAmt>0.004?buf.blurB.data:null;
+  const bA=(doBloom||depth||soften>0.004||needDir)?ensureBlur(buf,'blurA',8).data:null;
+  const bB=halAmt>0.004?ensureBlur(buf,'blurB',16).data:null;
 
   const stC=p.shadowTint||[0,0,0], hlC=p.highlightTint||[0,0,0];
   const cx=w/2, cy=h/2, maxD=Math.hypot(cx,cy);
@@ -763,15 +944,14 @@ function process(buf){
   const fMix=p.falloff||0, dirL=p.dirLight||0;
   const lightInv=1/(2*Math.pow((p.lightRadius||0.5)*Math.max(w,h),2));
   const lx=state.light.x*w, ly=state.light.y*h;
-  const maskFlash=hot>0.001?(buf.mask||buf.radial):null;
+  const maskFlash=hot>0.001?(buf.mask||ensureRadial(buf)):null;
 
-  const grain=p.grainFine?buf.noise:buf.grain;
   const gAmt=(p.grain||0)*amt*45*(state.clean?0.45:1);
 
   // AI Clarity: noise-gated small-radius unsharp, subject-weighted
   // when the AI mask exists (repair layer — independent of preset)
   const aiC=state.aiClarity*(state.clean?1.05:1.6);
-  const bC=aiC>0.004?buf.blurC.data:null;
+  const bC=aiC>0.004?ensureBlur(buf,'blurC',2).data:null;
   const aiMask=bC?buf.mask:null;
 
   const out=new ImageData(w,h), o=out.data;
@@ -903,7 +1083,7 @@ function process(buf){
       }
       // grain: clumped, strongest in midtones (exposure-dependent)
       if(gAmt>0){
-        const n=grain[idx]*gAmt*(4*Ln*(1-Ln)+0.15);
+        const n=sampleGrain(idx,x,y,w,!!p.grainFine)*gAmt*(4*Ln*(1-Ln)+0.15);
         R+=n; G+=n; B+=n;
       }
 
@@ -930,13 +1110,43 @@ function render(fast){
   }else{
     ctx.putImageData(out,0,0);
   }
+  drawCompareOverlay();
+  placeCompareLine();
+  renderMaskOverlay();
 }
 function renderPreview(){
   render(true);
   clearTimeout(fullTimer);
   fullTimer=setTimeout(()=>render(false),180);
 }
-function showOriginal(){ if(srcImage) ctx.putImageData(srcImage,0,0); }
+function drawCompareOverlay(){
+  if(!srcImage || state.compare>=100) return;
+  const clipW=Math.round(canvas.width*(1-state.compare/100));
+  if(clipW<=0) return;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0,0,clipW,canvas.height);
+  ctx.clip();
+  ctx.putImageData(srcImage,0,0);
+  ctx.restore();
+}
+function placeCompareLine(){
+  if(!srcImage || state.compare<=0 || state.compare>=100){
+    compareLine.style.display='none';
+    return;
+  }
+  const cr=canvas.getBoundingClientRect(), sr=stage.getBoundingClientRect();
+  const x=cr.left-sr.left + cr.width*(1-state.compare/100);
+  compareLine.style.display='block';
+  compareLine.style.left=x+'px';
+  compareLine.style.top=(cr.top-sr.top)+'px';
+  compareLine.style.height=cr.height+'px';
+}
+function showOriginal(){
+  if(!srcImage) return;
+  ctx.putImageData(srcImage,0,0);
+  compareLine.style.display='none';
+}
 
 /* ---------- Image loading ---------- */
 const isHeic = f => /\.hei[cf]$/i.test(f.name) || /hei[cf]/i.test(f.type);
@@ -992,35 +1202,102 @@ async function loadFile(f){
     }
   }
 }
-function setupImage(img){
-  const SMALL=700;
-  let w=img.naturalWidth, h=img.naturalHeight;
-
-  const bc=document.createElement('canvas'); bc.width=w; bc.height=h;
-  const bctx=bc.getContext('2d'); bctx.drawImage(img,0,0,w,h);
-  srcImage=bctx.getImageData(0,0,w,h);
+function buildSmallBufferFromCanvas(c){
+  const SMALL=700, w=c.width, h=c.height;
+  if(Math.max(w,h)<=SMALL) return fullBuf;
+  const s=SMALL/Math.max(w,h);
+  const sw=Math.max(1,Math.round(w*s)), sh=Math.max(1,Math.round(h*s));
+  const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
+  const sctx=sc.getContext('2d'); sctx.imageSmoothingEnabled=true;
+  sctx.drawImage(c,0,0,sw,sh);
+  return buildBuffers(sctx.getImageData(0,0,sw,sh));
+}
+function cropRectForAspect(){
+  const bw=baseCanvas.width, bh=baseCanvas.height;
+  if(state.aspect==='original') return {x:0,y:0,w:bw,h:bh};
+  const aspect=+state.aspect || bw/bh;
+  let w=bw, h=Math.round(w/aspect);
+  if(h>bh){ h=bh; w=Math.round(h*aspect); }
+  return {x:Math.round((bw-w)/2), y:Math.round((bh-h)/2), w, h};
+}
+function resetMasksForGeometry(){
+  maskFailed=false;
+  if(fullBuf) delete fullBuf.mask;
+  if(smallBuf && smallBuf!==fullBuf) delete smallBuf.mask;
+}
+function rebuildFromBase(){
+  if(!baseCanvas) return;
+  const crop=cropRectForAspect();
+  const rot=((state.rotation%360)+360)%360;
+  const swap=rot===90 || rot===270;
+  const outW=swap?crop.h:crop.w, outH=swap?crop.w:crop.h;
+  const work=document.createElement('canvas'); work.width=outW; work.height=outH;
+  const wctx=work.getContext('2d');
+  wctx.imageSmoothingEnabled=true;
+  wctx.save();
+  wctx.translate(outW/2,outH/2);
+  wctx.rotate((rot+state.straighten)*Math.PI/180);
+  const scale=1+Math.abs(state.straighten)/34;
+  wctx.scale(scale,scale);
+  wctx.drawImage(baseCanvas,crop.x,crop.y,crop.w,crop.h,-crop.w/2,-crop.h/2,crop.w,crop.h);
+  wctx.restore();
+  srcImage=wctx.getImageData(0,0,outW,outH);
   fullBuf=buildBuffers(srcImage);
-
-  if(Math.max(w,h)>SMALL){
-    const s=SMALL/Math.max(w,h);
-    const sw=Math.round(w*s), sh=Math.round(h*s);
-    const sc2=document.createElement('canvas'); sc2.width=sw; sc2.height=sh;
-    const sctx=sc2.getContext('2d'); sctx.imageSmoothingEnabled=true;
-    sctx.drawImage(img,0,0,sw,sh);
-    smallBuf=buildBuffers(sctx.getImageData(0,0,sw,sh));
-  }else{
-    smallBuf=fullBuf;
-  }
-
-  canvas.width=w; canvas.height=h;
-  canvas.style.display='block';
+  smallBuf=buildSmallBufferFromCanvas(work);
+  canvas.width=outW; canvas.height=outH;
+  maskCanvas.width=outW; maskCanvas.height=outH;
+  imageWrap.style.display='block';
+  resetMasksForGeometry();
+  applyViewTransform();
+  render(false);
+  updateHint(); placeHandle(); placeCompareLine();
+  if(usesMask()) computeMasks();
+}
+function scheduleGeometryRebuild(){
+  clearTimeout(geometryTimer);
+  geometryTimer=setTimeout(()=>{
+    rebuildFromBase();
+    commitHistory();
+  },160);
+}
+function syncGeometryControls(){
+  document.querySelectorAll('[data-aspect]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.aspect===String(state.aspect));
+  });
+  $('#straighten').value=state.straighten;
+  $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
+  $('#zoom').value=Math.round(state.zoom*100);
+  $('#zoomVal').textContent=Math.round(state.zoom*100)+'%';
+  $('#compare').value=state.compare;
+  $('#compareVal').textContent=state.compare===100?'Edited':state.compare===0?'Original':state.compare+'%';
+}
+function applyViewTransform(){
+  imageWrap.style.transform=`scale(${state.zoom})`;
+}
+function setEditorEnabled(enabled){
+  document.querySelectorAll('[data-needs-image]').forEach(el=>{ el.disabled=!enabled; });
+}
+function setupImage(img){
+  let w=img.naturalWidth, h=img.naturalHeight;
+  sourcePhotoSize={width:w,height:h};
+  const edgeScale=MAX_PHOTO_EDGE/Math.max(w,h);
+  const pixelScale=Math.sqrt(MAX_PHOTO_PIXELS/(w*h));
+  const scale=Math.min(1,edgeScale,pixelScale);
+  w=Math.max(1,Math.round(w*scale)); h=Math.max(1,Math.round(h*scale));
+  baseCanvas=document.createElement('canvas'); baseCanvas.width=w; baseCanvas.height=h;
+  const bctx=baseCanvas.getContext('2d'); bctx.imageSmoothingEnabled=true; bctx.drawImage(img,0,0,w,h);
+  state.aspect='original'; state.rotation=0; state.straighten=0; state.zoom=1; state.compare=100;
+  maskState.overlay=false; maskState.brush=false; maskState.mode='add'; maskState.size=36;
+  $('#maskOverlay').checked=false; $('#maskBrush').checked=false; $('#brushSize').value=36; $('#brushVal').textContent='36';
+  syncGeometryControls();
   $('#drop').style.display='none';
   stage.classList.remove('empty');
+  setEditorEnabled(true);
   $('#saveBtn').disabled=false; $('#bestQualityBtn').disabled=false; $('#resetBtn').disabled=false; $('#presetBtn').disabled=false;
   cmpHint.style.display='block';
-  render(false);
-  updateHint(); placeHandle();
-  if(usesMask()) computeMasks();
+  rebuildFromBase();
+  resetHistory();
+  commitHistory();
 }
 
 /* ---------- AI subject segmentation (Pro Finish) ----------
@@ -1093,6 +1370,85 @@ async function computeMasks(){
     updateHint();
   }
 }
+function syncSmallMaskFromFull(){
+  if(!fullBuf || !fullBuf.mask || !smallBuf || smallBuf===fullBuf) return;
+  const w=fullBuf.img.width, h=fullBuf.img.height;
+  const mc=document.createElement('canvas'); mc.width=w; mc.height=h;
+  mc.getContext('2d').putImageData(maskToImageData(fullBuf.mask,w,h),0,0);
+  const sw=smallBuf.img.width, sh=smallBuf.img.height;
+  const sc=document.createElement('canvas'); sc.width=sw; sc.height=sh;
+  const sctx=sc.getContext('2d'); sctx.imageSmoothingEnabled=true;
+  sctx.drawImage(mc,0,0,sw,sh);
+  smallBuf.mask=imageDataToMask(sctx.getImageData(0,0,sw,sh));
+}
+function ensureEditableMask(){
+  if(!fullBuf) return null;
+  if(!fullBuf.mask) fullBuf.mask=new Float32Array(ensureRadial(fullBuf));
+  syncSmallMaskFromFull();
+  return fullBuf.mask;
+}
+function renderMaskOverlay(){
+  if(!maskState.overlay || !fullBuf){
+    maskCanvas.style.display='none';
+    maskCanvas.style.pointerEvents='none';
+    return;
+  }
+  const mask=fullBuf.mask||ensureRadial(fullBuf);
+  if(!mask) return;
+  const w=fullBuf.img.width, h=fullBuf.img.height;
+  const id=new ImageData(w,h);
+  for(let i=0;i<w*h;i++){
+    const a=Math.round(mask[i]*112);
+    id.data[i*4]=80;
+    id.data[i*4+1]=190;
+    id.data[i*4+2]=255;
+    id.data[i*4+3]=a;
+  }
+  maskCanvas.width=w; maskCanvas.height=h;
+  maskCtx.putImageData(id,0,0);
+  maskCanvas.style.display='block';
+  maskCanvas.style.pointerEvents=maskState.brush?'auto':'none';
+}
+function canvasPoint(ev){
+  const cr=canvas.getBoundingClientRect();
+  return {
+    x:clamp(Math.round((ev.clientX-cr.left)/cr.width*canvas.width),0,canvas.width-1),
+    y:clamp(Math.round((ev.clientY-cr.top)/cr.height*canvas.height),0,canvas.height-1)
+  };
+}
+function paintMask(ev){
+  const mask=ensureEditableMask();
+  if(!mask) return;
+  const pt=canvasPoint(ev), w=fullBuf.img.width, h=fullBuf.img.height;
+  const r=maskState.size, r2=r*r, x0=Math.max(0,pt.x-r), x1=Math.min(w-1,pt.x+r);
+  const y0=Math.max(0,pt.y-r), y1=Math.min(h-1,pt.y+r);
+  const add=maskState.mode==='add';
+  for(let y=y0;y<=y1;y++){
+    for(let x=x0;x<=x1;x++){
+      const dx=x-pt.x, dy=y-pt.y, d2=dx*dx+dy*dy;
+      if(d2>r2) continue;
+      const idx=y*w+x, strength=(1-Math.sqrt(d2)/r)*0.35;
+      mask[idx]=add ? clamp(mask[idx]+strength,0,1) : clamp(mask[idx]-strength,0,1);
+    }
+  }
+  syncSmallMaskFromFull();
+  renderPreview();
+}
+maskCanvas.addEventListener('pointerdown', e=>{
+  if(!maskState.brush) return;
+  e.preventDefault();
+  maskCanvas.setPointerCapture(e.pointerId);
+  paintMask(e);
+  const move=ev=>paintMask(ev);
+  const up=ev=>{
+    maskCanvas.removeEventListener('pointermove',move);
+    maskCanvas.removeEventListener('pointerup',up);
+    render(false);
+    commitHistory();
+  };
+  maskCanvas.addEventListener('pointermove',move);
+  maskCanvas.addEventListener('pointerup',up);
+});
 
 /* ---------- Light handle (Smart Light relight) ---------- */
 function lightActive(){ return params.relight>0.001 || params.hotspot>0.001; }
@@ -1120,11 +1476,16 @@ lightHandle.addEventListener('pointerdown', e=>{
     lightHandle.removeEventListener('pointermove',move);
     lightHandle.removeEventListener('pointerup',up);
     render(false);
+    commitHistory();
   };
   lightHandle.addEventListener('pointermove',move);
   lightHandle.addEventListener('pointerup',up);
 });
-window.addEventListener('resize', placeHandle);
+window.addEventListener('resize', ()=>{
+  placeHandle();
+  placeCompareLine();
+  renderMaskOverlay();
+});
 
 function usesMask(){
   return !!PRESETS[currentPreset].depth || state.focus || params.hotspot>0.001;
@@ -1221,6 +1582,7 @@ function buildSliders(){
       if(k==='hotspot'&&params.hotspot>0.001) computeMasks();
       renderPreview();
     });
+    inp.addEventListener('change', commitHistory);
     row.appendChild(lab); row.appendChild(inp); wrap.appendChild(row);
   }
 }
@@ -1243,6 +1605,85 @@ function syncMainControls(){
   $('#clean').checked=state.clean;
   $('#focus').checked=state.focus;
   $('#exportFormat').value=state.exportFormat;
+  syncGeometryControls();
+  $('#maskOverlay').checked=maskState.overlay;
+  $('#maskBrush').checked=maskState.brush;
+  $('#brushSize').value=maskState.size;
+  $('#brushVal').textContent=maskState.size;
+  document.querySelectorAll('[data-mask-mode]').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.maskMode===maskState.mode);
+  });
+}
+function editorSnapshot(){
+  return {
+    preset:currentPreset,
+    params:copyParams(params),
+    state:{
+      intensity:state.intensity,
+      focus:state.focus,
+      aiClarity:state.aiClarity,
+      clean:state.clean,
+      light:{...state.light},
+      lightMode:state.lightMode,
+      lightAmount:state.lightAmount,
+      lightSoftness:state.lightSoftness,
+      lightWarmth:state.lightWarmth,
+      lightBackdrop:state.lightBackdrop,
+      exportFormat:state.exportFormat,
+      aspect:state.aspect,
+      rotation:state.rotation,
+      straighten:state.straighten,
+      zoom:state.zoom,
+      compare:state.compare
+    },
+    mask:{...maskState}
+  };
+}
+function updateHistoryButtons(){
+  $('#undoBtn').disabled=history.index<=0;
+  $('#redoBtn').disabled=history.index>=history.stack.length-1;
+}
+function resetHistory(){
+  history.stack=[];
+  history.index=-1;
+  updateHistoryButtons();
+}
+function commitHistory(){
+  if(applyingHistory || !srcImage) return;
+  const snap=editorSnapshot();
+  const prev=history.stack[history.index];
+  if(prev && JSON.stringify(prev)===JSON.stringify(snap)) return;
+  history.stack=history.stack.slice(0,history.index+1);
+  history.stack.push(snap);
+  if(history.stack.length>50) history.stack.shift();
+  history.index=history.stack.length-1;
+  updateHistoryButtons();
+}
+function applyEditorSnapshot(snap){
+  if(!snap) return;
+  applyingHistory=true;
+  currentPreset=snap.preset;
+  params=copyParams(snap.params);
+  Object.assign(state,snap.state);
+  state.light={...snap.state.light};
+  Object.assign(maskState,snap.mask||{});
+  document.querySelectorAll('.preset').forEach(p=>p.classList.toggle('active',p.dataset.preset===currentPreset));
+  const el=document.querySelector(`[data-preset="${currentPreset}"]`);
+  $('#tunePreset').textContent=el?el.querySelector('.name').textContent:(CUSTOM_PRESET_NAMES[currentPreset]||currentPreset);
+  syncMainControls(); syncSliders(); updateLightUI(); applyViewTransform();
+  rebuildFromBase();
+  applyingHistory=false;
+  updateHistoryButtons();
+}
+function undoEdit(){
+  if(history.index<=0) return;
+  history.index--;
+  applyEditorSnapshot(history.stack[history.index]);
+}
+function redoEdit(){
+  if(history.index>=history.stack.length-1) return;
+  history.index++;
+  applyEditorSnapshot(history.stack[history.index]);
 }
 function presetStateSnapshot(){
   return {
@@ -1294,6 +1735,9 @@ function readCustomPresetList(){
     return [];
   }
 }
+function writeCustomPresetList(list){
+  localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
+}
 function loadCustomPresets(){
   for(const item of readCustomPresetList()){
     if(!item || !item.id || !item.params) continue;
@@ -1316,12 +1760,120 @@ function saveCustomPreset(){
   };
   const list=readCustomPresetList();
   list.push(item);
-  localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
+  writeCustomPresetList(list);
   PRESETS[id]=item.params;
   CUSTOM_PRESET_STATE[id]=item.state;
   CUSTOM_PRESET_NAMES[id]=item.name;
   addCustomPresetTile(id,item.name,item.params);
   selectPreset(id);
+}
+function safePresetName(name){
+  const n=String(name||'Lumo Filter').replace(/\s+/g,' ').trim();
+  return (n||'Lumo Filter').slice(0,42);
+}
+function slugName(name){
+  return safePresetName(name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'lumo-filter';
+}
+function currentPresetName(){
+  const el=document.querySelector(`.preset[data-preset="${currentPreset}"] .name`);
+  return CUSTOM_PRESET_NAMES[currentPreset] || (el?el.textContent:'Lumo Filter');
+}
+function portablePresetItem(name, p=params, savedState=presetStateSnapshot()){
+  return {
+    name:safePresetName(name),
+    params:copyParams(p),
+    state:savedState?copyParams(savedState):null
+  };
+}
+function presetSharePayload(items){
+  return {
+    app:'Lumo',
+    type:'lumo-presets',
+    version:PRESET_SHARE_VERSION,
+    exportedAt:new Date().toISOString(),
+    presets:items.map(item=>portablePresetItem(item.name,item.params,item.state))
+  };
+}
+function downloadJson(name,data){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.download=name;
+  a.href=url;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function shareJsonFile(name,data,title){
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  if(navigator.share && typeof File!=='undefined'){
+    const file=new File([blob],name,{type:'application/json'});
+    const shareData={files:[file],title:title||'Lumo filters'};
+    if(!navigator.canShare || navigator.canShare(shareData)){
+      try{
+        await navigator.share(shareData);
+        return;
+      }catch(e){
+        if(e && e.name==='AbortError') return;
+      }
+    }
+  }
+  downloadJson(name,data);
+}
+function shareCurrentPreset(){
+  const name=safePresetName(prompt('Filter name', currentPresetName())||currentPresetName());
+  const payload=presetSharePayload([portablePresetItem(name)]);
+  shareJsonFile(slugName(name)+'.lumo-presets.json', payload, name);
+}
+function exportSavedPresets(){
+  const list=readCustomPresetList();
+  if(!list.length){
+    alert('Save a custom filter first, then export it.');
+    return;
+  }
+  const items=list.map(item=>portablePresetItem(item.name,item.params,item.state));
+  shareJsonFile('lumo-saved-filters.lumo-presets.json', presetSharePayload(items), 'Lumo saved filters');
+}
+function normalizeImportedPresets(raw){
+  const source=Array.isArray(raw) ? raw : raw&&Array.isArray(raw.presets) ? raw.presets : raw ? [raw] : [];
+  return source
+    .filter(item=>item && typeof item==='object' && item.params && typeof item.params==='object')
+    .map(item=>portablePresetItem(item.name||'Imported Filter', item.params, item.state||null));
+}
+function installImportedPreset(item,index){
+  const saved={
+    id:'custom-'+Date.now()+'-'+index,
+    name:safePresetName(item.name),
+    params:copyParams(item.params),
+    state:item.state?copyParams(item.state):null
+  };
+  PRESETS[saved.id]=saved.params;
+  CUSTOM_PRESET_STATE[saved.id]=saved.state;
+  CUSTOM_PRESET_NAMES[saved.id]=saved.name;
+  addCustomPresetTile(saved.id,saved.name,saved.params);
+  return saved;
+}
+async function importPresetFile(file){
+  if(!file) return;
+  try{
+    const raw=JSON.parse(await file.text());
+    const imported=normalizeImportedPresets(raw);
+    if(!imported.length){
+      alert('That file did not contain any Lumo filters.');
+      return;
+    }
+    const list=readCustomPresetList();
+    const installed=imported.map((item,index)=>installImportedPreset(item,index));
+    writeCustomPresetList(list.concat(installed));
+    selectPreset(installed[installed.length-1].id);
+    alert(`Imported ${installed.length} filter${installed.length===1?'':'s'}.`);
+  }catch(err){
+    console.error('preset import failed:', err);
+    alert('Could not import those filters. Make sure the file is a Lumo preset JSON file.');
+  }finally{
+    presetFileInput.value='';
+  }
 }
 
 function updateHint(){
@@ -1356,6 +1908,7 @@ function selectPreset(id){
   updateHint(); placeHandle();
   render(false);
   if(usesMask()) computeMasks();
+  commitHistory();
 }
 
 document.querySelector('aside').addEventListener('click', e=>{
@@ -1365,28 +1918,34 @@ document.querySelector('aside').addEventListener('click', e=>{
 loadCustomPresets();
 buildSliders(); syncSliders(); syncMainControls();
 selectPreset('smart');
+setEditorEnabled(false);
+updateHistoryButtons();
 
 $('#intensity').addEventListener('input', e=>{
   state.intensity=e.target.value/100;
   $('#intVal').textContent=e.target.value+'%';
   renderPreview();
 });
+$('#intensity').addEventListener('change', commitHistory);
 $('#aiclarity').addEventListener('input', e=>{
   state.aiClarity=e.target.value/100;
   $('#aicVal').textContent=e.target.value;
   if(state.aiClarity>0) computeMasks();    // subject-aware when possible
   renderPreview();
 });
+$('#aiclarity').addEventListener('change', commitHistory);
 $('#clean').addEventListener('change', e=>{
   state.clean=e.target.checked;
   renderPreview();
+  commitHistory();
 });
-$('#exportFormat').addEventListener('change', e=>{ state.exportFormat=e.target.value; });
+$('#exportFormat').addEventListener('change', e=>{ state.exportFormat=e.target.value; commitHistory(); });
 $('#focus').addEventListener('change', e=>{
   state.focus=e.target.checked;
   updateHint();
   if(state.focus) computeMasks();          // computes once, then cached
   render(false);
+  commitHistory();
 });
 $('#lightModes').addEventListener('click', e=>{
   const btn=e.target.closest('[data-light-mode]'); if(!btn) return;
@@ -1398,6 +1957,7 @@ $('#lightModes').addEventListener('click', e=>{
     if(state.lightAmount===0) state.lightAmount=next==='flash'?45:50;
   }
   applyLightControls();
+  commitHistory();
 });
 for(const id of ['lightAmount','lightSoftness','lightWarmth','lightBackdrop']){
   $('#'+id).addEventListener('input', e=>{
@@ -1405,7 +1965,77 @@ for(const id of ['lightAmount','lightSoftness','lightWarmth','lightBackdrop']){
     state['light'+key]=+e.target.value;
     applyLightControls();
   });
+  $('#'+id).addEventListener('change', commitHistory);
 }
+
+$('#undoBtn').addEventListener('click', undoEdit);
+$('#redoBtn').addEventListener('click', redoEdit);
+document.querySelectorAll('[data-aspect]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    state.aspect=btn.dataset.aspect;
+    syncGeometryControls();
+    rebuildFromBase();
+    commitHistory();
+  });
+});
+$('#rotateLeftBtn').addEventListener('click', ()=>{
+  state.rotation=(state.rotation+270)%360;
+  rebuildFromBase();
+  commitHistory();
+});
+$('#rotateRightBtn').addEventListener('click', ()=>{
+  state.rotation=(state.rotation+90)%360;
+  rebuildFromBase();
+  commitHistory();
+});
+$('#straighten').addEventListener('input', e=>{
+  state.straighten=+e.target.value;
+  $('#straightVal').textContent=(Math.round(state.straighten*10)/10)+'°';
+  scheduleGeometryRebuild();
+});
+$('#zoom').addEventListener('input', e=>{
+  state.zoom=+e.target.value/100;
+  $('#zoomVal').textContent=e.target.value+'%';
+  applyViewTransform();
+  placeHandle(); placeCompareLine(); renderMaskOverlay();
+});
+$('#zoom').addEventListener('change', commitHistory);
+$('#compare').addEventListener('input', e=>{
+  state.compare=+e.target.value;
+  $('#compareVal').textContent=state.compare===100?'Edited':state.compare===0?'Original':state.compare+'%';
+  render(false);
+});
+$('#compare').addEventListener('change', commitHistory);
+$('#maskOverlay').addEventListener('change', e=>{
+  maskState.overlay=e.target.checked;
+  if(maskState.overlay && usesMask()) computeMasks();
+  renderMaskOverlay();
+  commitHistory();
+});
+$('#maskBrush').addEventListener('change', e=>{
+  maskState.brush=e.target.checked;
+  if(maskState.brush){ maskState.overlay=true; $('#maskOverlay').checked=true; ensureEditableMask(); }
+  renderMaskOverlay();
+  commitHistory();
+});
+document.querySelectorAll('[data-mask-mode]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    maskState.mode=btn.dataset.maskMode;
+    syncMainControls();
+    commitHistory();
+  });
+});
+$('#brushSize').addEventListener('input', e=>{
+  maskState.size=+e.target.value;
+  $('#brushVal').textContent=e.target.value;
+});
+$('#brushSize').addEventListener('change', commitHistory);
+$('#maskAiBtn').addEventListener('click', ()=>{
+  if(fullBuf){ delete fullBuf.mask; if(smallBuf&&smallBuf!==fullBuf) delete smallBuf.mask; maskFailed=false; }
+  computeMasks();
+  render(false);
+  commitHistory();
+});
 
 $('#chooseBtn').addEventListener('click', ()=>fileInput.click());
 stage.addEventListener('click', ()=>{ if(!srcImage) fileInput.click(); });
@@ -1428,33 +2058,80 @@ $('#resetBtn').addEventListener('click', ()=>{
     state.intensity=DEFAULT_INTENSITY; state.aiClarity=0; state.clean=true; state.focus=false; state.light=defaultLight();
     syncMainControls();
   }
-  syncSliders(); syncLightControlsFromParams(); updateHint(); placeHandle(); render(false);
+  state.aspect='original'; state.rotation=0; state.straighten=0; state.zoom=1; state.compare=100;
+  maskState.overlay=false; maskState.brush=false; maskState.mode='add'; maskState.size=36;
+  if(fullBuf){ delete fullBuf.mask; if(smallBuf&&smallBuf!==fullBuf) delete smallBuf.mask; maskFailed=false; }
+  syncMainControls(); syncSliders(); syncLightControlsFromParams(); applyViewTransform();
+  rebuildFromBase();
+  updateHint(); placeHandle(); render(false);
   if(usesMask()) computeMasks();
+  commitHistory();
 });
 $('#presetBtn').addEventListener('click', saveCustomPreset);
+$('#sharePresetBtn').addEventListener('click', shareCurrentPreset);
+$('#exportPresetsBtn').addEventListener('click', exportSavedPresets);
+$('#importPresetBtn').addEventListener('click', ()=>presetFileInput.click());
+presetFileInput.addEventListener('change', e=>importPresetFile(e.target.files[0]));
 
-function exportWarningMessage(out){
-  if(!srcImage || out.width===srcImage.width && out.height===srcImage.height) return '';
-  return `Export size is ${out.width} x ${out.height}.\nImported photo is ${srcImage.width} x ${srcImage.height}.\n\nContinue saving?`;
+function exportWarningMessage(target){
+  if(!sourcePhotoSize) return '';
+  const sameSize=target.width>=sourcePhotoSize.width*0.98 && target.height>=sourcePhotoSize.height*0.98;
+  if(sameSize) return '';
+  return `Export size is ${target.width} x ${target.height}.\nImported photo is ${sourcePhotoSize.width} x ${sourcePhotoSize.height}.\n\nLumo keeps very large photos under about 26MP so the browser does not run out of memory. Continue saving?`;
+}
+function setSavingUI(saving){
+  $('#saveBtn').disabled=saving;
+  $('#bestQualityBtn').disabled=saving;
+  $('#saveBtn').textContent=saving?'Saving...':'Save';
+}
+function failExport(err){
+  console.error('save failed:', err);
+  alert('Could not save this photo. Try JPEG export or crop/resize the image first.');
 }
 function saveCurrentExport(bestQuality=false){
-  if(bestQuality){
-    state.exportFormat='png';
-    syncMainControls();
-  }
-  render(false);   // make sure canvas holds the full-res result
+  if(!fullBuf) return;
   const warning=exportWarningMessage(canvas);
   if(warning && !confirm(warning)) return;
-  const a=document.createElement('a');
-  const png=state.exportFormat==='png';
-  a.download=`lumo-${currentPreset}.${png?'png':'jpg'}`;
-  canvas.toBlob(blob=>{
-    if(!blob){ alert('Could not save this image.'); return; }
-    const url=URL.createObjectURL(blob);
-    a.href=url;
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
-  }, png?'image/png':'image/jpeg', png?undefined:EXPORT_JPEG_QUALITY);
+  const priorCompare=state.compare;
+  setSavingUI(true);
+  try{
+    state.compare=100;
+    render(false);
+    requestAnimationFrame(()=>{
+      try{
+        const a=document.createElement('a');
+        const png=state.exportFormat==='png';
+        const safeName=currentPreset.replace(/[^a-z0-9-]+/gi,'-').toLowerCase();
+        a.download=`lumo-${safeName}.${png?'png':'jpg'}`;
+        const quality=bestQuality?EXPORT_JPEG_BEST_QUALITY:EXPORT_JPEG_QUALITY;
+        canvas.toBlob(blob=>{
+          state.compare=priorCompare;
+          syncGeometryControls();
+          render(false);
+          setSavingUI(false);
+          if(!blob){ failExport(new Error('empty blob')); return; }
+          const url=URL.createObjectURL(blob);
+          a.href=url;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(()=>URL.revokeObjectURL(url),1000);
+        }, png?'image/png':'image/jpeg', png?undefined:quality);
+      }catch(err){
+        state.compare=priorCompare;
+        syncGeometryControls();
+        render(false);
+        setSavingUI(false);
+        failExport(err);
+      }
+    });
+  }catch(err){
+    state.compare=priorCompare;
+    syncGeometryControls();
+    render(false);
+    setSavingUI(false);
+    failExport(err);
+  }
 }
 $('#saveBtn').addEventListener('click', ()=>saveCurrentExport(false));
 $('#bestQualityBtn').addEventListener('click', ()=>saveCurrentExport(true));
