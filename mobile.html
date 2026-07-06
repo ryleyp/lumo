@@ -798,6 +798,7 @@ let installPrompt = null;
 const tmpCanvas = document.createElement('canvas');
 const maskCanvas = document.createElement('canvas');
 const CUSTOM_PRESET_KEY = 'lumo.customPresets.v1';
+const CUSTOM_PRESET_BACKUP_KEY = 'lumo.customPresets.updateBackup.v1';
 const CUSTOM_PRESET_STATE = {};
 const CUSTOM_PRESET_NAMES = {};
 const undoStack = [], redoStack = [];
@@ -1635,7 +1636,21 @@ function readCustomPresetList(){
 function writeCustomPresetList(list){
   localStorage.setItem(CUSTOM_PRESET_KEY, JSON.stringify(list));
 }
+function preserveCustomPresetsForUpdate(){
+  try{
+    const saved=localStorage.getItem(CUSTOM_PRESET_KEY);
+    if(saved) sessionStorage.setItem(CUSTOM_PRESET_BACKUP_KEY, saved);
+  }catch(e){}
+}
+function restoreCustomPresetsAfterUpdate(){
+  try{
+    if(localStorage.getItem(CUSTOM_PRESET_KEY)) return;
+    const saved=sessionStorage.getItem(CUSTOM_PRESET_BACKUP_KEY);
+    if(saved) localStorage.setItem(CUSTOM_PRESET_KEY, saved);
+  }catch(e){}
+}
 function loadCustomPresets(){
+  restoreCustomPresetsAfterUpdate();
   for(const item of readCustomPresetList()){
     if(!item || !item.id || !item.params) continue;
     PRESETS[item.id]=item.params;
@@ -1867,6 +1882,7 @@ async function checkForAppUpdate(){
   const reset=()=>{ btn.disabled=false; btn.textContent=originalText; };
   btn.disabled=true;
   btn.textContent='Checking...';
+  preserveCustomPresetsForUpdate();
   let reloading=false;
   const reloadOnce=()=>{
     if(reloading) return;
