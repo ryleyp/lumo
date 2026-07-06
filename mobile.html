@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-title" content="Lumo" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<link rel="manifest" href="manifest-mobile.webmanifest" />
+<link rel="manifest" href="manifest-mobile.webmanifest?v=2026-07-05-1" />
 <link rel="apple-touch-icon" href="icons/lumo-mobile.svg" />
 <title>Lumo Mobile — Film Presets</title>
 <style>
@@ -489,6 +489,8 @@
 const $ = s => document.querySelector(s);
 const stage = $('#stage'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
 const fileInput = $('#file'), cameraInput = $('#cameraFile'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint'), busy = $('#busy');
+const APP_BUILD = '2026-07-05-1';
+const SW_URL = './sw-mobile.js?v=' + encodeURIComponent(APP_BUILD);
 
 /* ============================================================
    Color science
@@ -1870,7 +1872,9 @@ async function checkForAppUpdate(){
     if(reloading) return;
     reloading=true;
     btn.textContent='Reloading...';
-    location.reload();
+    const url=new URL(location.href);
+    url.searchParams.set('lumo_update', Date.now());
+    location.replace(url.href);
   };
   const activateWaiting=reg=>{
     if(!reg || !reg.waiting) return false;
@@ -1881,13 +1885,19 @@ async function checkForAppUpdate(){
   };
   try{
     let reg=await navigator.serviceWorker.getRegistration('./');
-    if(!reg) reg=await navigator.serviceWorker.register('./sw-mobile.js');
+    if('caches' in window){
+      btn.textContent='Clearing cache...';
+      const keys=await caches.keys();
+      await Promise.all(keys.filter(key => key.startsWith('lumo-mobile-')).map(key => caches.delete(key)));
+    }
+    if(!reg) reg=await navigator.serviceWorker.register(SW_URL, {scope:'./', updateViaCache:'none'});
     navigator.serviceWorker.addEventListener('controllerchange', reloadOnce, {once:true});
     if(activateWaiting(reg)) return;
-    const updated=await reg.update();
+    btn.textContent='Downloading...';
+    const updated=await navigator.serviceWorker.register('./sw-mobile.js?v=' + Date.now(), {scope:'./', updateViaCache:'none'});
+    await updated.update().catch(()=>null);
     if(activateWaiting(updated)) return;
     if(updated.installing){
-      btn.textContent='Downloading...';
       const installing=updated.installing;
       installing.addEventListener('statechange', ()=>{
         if(installing.state==='installed'){
@@ -1896,14 +1906,15 @@ async function checkForAppUpdate(){
       });
       setTimeout(()=>{
         if(reloading) return;
-        reset();
-        alert('Update check finished. If Lumo does not refresh, close and reopen the app once.');
+        if(updated.active) updated.active.postMessage({type:'REFRESH_APP_CACHE'});
+        setTimeout(reloadOnce,900);
       },8000);
       return;
     }
+    if(updated.active) updated.active.postMessage({type:'REFRESH_APP_CACHE'});
+    await fetch('./mobile.html?lumo_update=' + Date.now(), {cache:'reload'}).catch(()=>null);
     navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
-    reset();
-    alert('Lumo is already up to date.');
+    setTimeout(reloadOnce,500);
   }catch(e){
     navigator.serviceWorker.removeEventListener('controllerchange', reloadOnce);
     reset();
@@ -2062,7 +2073,7 @@ $('#savePhotosBtn').addEventListener('click', ()=>saveCurrentExport({photos:true
 
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('./sw-mobile.js').catch(()=>{});
+    navigator.serviceWorker.register(SW_URL, {scope:'./', updateViaCache:'none'}).catch(()=>{});
   });
 }
 </script>

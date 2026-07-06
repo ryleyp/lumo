@@ -12,7 +12,7 @@ Lumo is a static, on-device film preset editor.
 - Mobile previews use a smaller working image for speed, but export renders from the original decoded photo at original dimensions unless a social export size is selected.
 - Mobile clears large export buffers before opening the next photo to reduce iPhone memory crashes.
 - Mobile saved presets are stored in the browser on that device, and subject-mask blur runs on-device.
-- The mobile Update app button refreshes only cached app files; saved presets remain in browser storage.
+- The mobile Update app button clears Lumo's app cache, checks GitHub Pages for fresh files, activates the newest service worker, and reloads without touching saved presets.
 - Mobile Save to Photos opens the iPhone share sheet with the selected JPEG or PNG so Save Image can put it in the Photos library.
 
 ## GitHub Pages
