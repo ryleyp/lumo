@@ -94,6 +94,7 @@
   .sw-flash{background:linear-gradient(135deg,#dfe7e2,#c7d0cc 40%,#6f7a76)}
   .sw-fil35 {background:linear-gradient(135deg,#f3d9a8,#caa06a 45%,#6d5a3e)}
   .sw-warmfix{background:linear-gradient(135deg,#ffe9c9,#e8b57e 45%,#1e2a4a)}
+  .sw-photopass{background:linear-gradient(135deg,#fff1d6,#f4b57f 45%,#3d6b8e)}
   .sw-g7x{background:linear-gradient(135deg,#ffffff,#dfe6ee 38%,#2a3140)}
   .sw-pecra{background:radial-gradient(circle at 42% 38%,#f0e8dd 0 28%,#b9a58f 45%,#3a3f4a 90%)}
   .sw-digicam{background:linear-gradient(135deg,#ffe7d6,#c9d8c5 45%,#8fa3b8)}
@@ -215,6 +216,11 @@
           <div class="swatch sw-warmfix"></div>
           <div class="name">Warm Fix</div>
           <div class="sub">glare fix · natural</div>
+        </div>
+        <div class="preset" data-preset="photopass">
+          <div class="swatch sw-photopass"></div>
+          <div class="name">PhotoPass</div>
+          <div class="sub">de-crisp · lively</div>
         </div>
         <div class="preset" data-preset="g7x">
           <div class="swatch sw-g7x"></div>
@@ -571,6 +577,21 @@ const PRESETS = {
     grain:0.06, vignette:0.10, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
     shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  photopass: { // PhotoPass — de-crisp for park photographer JPEGs:
+               // those files arrive heavily sharpened with harsh contrast
+               // and clipped flash whites. Soften pulls back the crunchy
+               // texture, filmic + highlight recovery relax the hard
+               // whites, lifted shadows open up faces, and warm WB +
+               // vibrance + a light bloom bring the color back to life.
+    exposure:0.10, rGain:1.04, gGain:1.00, bGain:0.96,
+    contrast:0.98, filmic:0.28, lift:0.02, sat:1.04, vibrance:0.16,
+    brightness:0.04, highlights:0.24, shadows:0.12, blackPoint:0.04, hlProtect:0.20,
+    soften:0.16,
+    bloom:0.14, bloomThresh:0.68, hal:0.02,
+    grain:0.06, grainFine:true, vignette:0.06, vignetteWarm:true, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[4,2,-2], highlightTint:[6,4,-2]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
              // strong center hotspot, hard-clipped flash whites
