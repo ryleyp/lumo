@@ -582,16 +582,16 @@ const PRESETS = {
                // those files arrive heavily sharpened with harsh contrast
                // and clipped flash whites. Soften pulls back the crunchy
                // texture, filmic + highlight recovery relax the hard
-               // whites, lifted shadows open up faces, and warm WB +
-               // vibrance + a light bloom bring the color back to life.
-    exposure:0.10, rGain:1.04, gGain:1.00, bGain:0.96,
+               // whites, lifted shadows open up faces, and near-neutral
+               // WB + vibrance + a light bloom keep the color lively.
+    exposure:0.10, rGain:1.015, gGain:1.00, bGain:0.985,
     contrast:0.98, filmic:0.28, lift:0.02, sat:1.04, vibrance:0.16,
     brightness:0.04, highlights:0.24, shadows:0.12, blackPoint:0.04, hlProtect:0.20,
-    soften:0.16,
+    soften:0.11,
     bloom:0.14, bloomThresh:0.68, hal:0.02,
-    grain:0.06, grainFine:true, vignette:0.06, vignetteWarm:true, hotspot:0,
+    grain:0.06, grainFine:true, vignette:0.06, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
-    shadowTint:[4,2,-2], highlightTint:[6,4,-2]
+    shadowTint:[1,1,0], highlightTint:[2,1,0]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
              // strong center hotspot, hard-clipped flash whites
