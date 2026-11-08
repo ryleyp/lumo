@@ -690,7 +690,7 @@ const PRESETS = {
     exposure:0.16, rGain:1.04, gGain:1.00, bGain:0.965,
     contrast:1.10, filmic:0.08, lift:0, sat:1.03, vibrance:0.10,
     brightness:0.04, highlights:0.34, shadows:0.42, blackPoint:0.12, whites:0.10, hlProtect:0.20,
-    soften:0,
+    detail:0.60, soften:0,
     bloom:0, bloomThresh:0.72, hal:0,
     grain:0, vignette:0.10, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
@@ -906,6 +906,7 @@ const SLIDERS = [
   ['sat','Saturation',0,2,0.05],
   ['vibrance','Vibrance',0,0.6,0.01],
   ['Effects'],
+  ['detail','Fine detail',0,1,0.01],
   ['soften','Soften (−texture)',0,0.6,0.01],
   ['bloom','Bloom',0,1,0.05],
   ['bloomThresh','Bloom threshold',0.3,0.95,0.01],
@@ -1129,7 +1130,10 @@ function process(buf){
 
   // AI Clarity: noise-gated small-radius unsharp, subject-weighted
   // when the AI mask exists (repair layer — independent of preset)
-  const aiC=state.aiClarity*(state.clean?1.05:1.6);
+  // Preset detail sharpening shares the same noise-gated sharpening as AI Clarity.
+  // A zero detail value preserves every existing preset's prior behavior.
+  const presetDetail=(p.detail||0)*amt;
+  const aiC=state.aiClarity*(state.clean?1.05:1.6)+presetDetail;
   const bC=aiC>0.004?ensureBlur(buf,'blurC',2).data:null;
   const aiMask=bC?buf.mask:null;
 
