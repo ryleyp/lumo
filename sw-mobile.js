@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lumo-mobile-v15';
+const CACHE_NAME = 'lumo-mobile-v16';
 const CACHE_PREFIX = 'lumo-mobile-';
 const APP_SHELL = [
   './index.html',
