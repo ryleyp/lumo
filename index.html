@@ -642,19 +642,19 @@ const PRESETS = {
   },
   wedding2: { // Wedding 2 — backlit outdoor fix:
               // phone shots against a bright sky leave faces dim and
-              // flat with a hazy, cool cast. Shadow lift + a gentle
-              // draggable relight open up the subjects, highlight
-              // recovery brings the sky back, a firmer black point
-              // cuts the haze, and warm WB + vibrance fix the
-              // overcast color so skin reads natural.
-    exposure:0.20, rGain:1.035, gGain:0.99, bGain:0.97,
-    contrast:1.09, filmic:0.15, lift:0, sat:1.04, vibrance:0.14,
-    brightness:0.07, highlights:0.40, shadows:0.52, blackPoint:0.06, whites:0.06, hlProtect:0.25,
+              // flat with a hazy, cool cast. Shadow lift opens up
+              // the subjects, highlight
+              // recovery brings the sky back, and a firmer black
+              // point + contrast cut the haze. WB stays near neutral
+              // and there is no relight glow, so it keeps its edge.
+    exposure:0.16, rGain:1.01, gGain:1.00, bGain:0.99,
+    contrast:1.12, filmic:0.12, lift:0, sat:1.03, vibrance:0.12,
+    brightness:0.04, highlights:0.40, shadows:0.42, blackPoint:0.10, whites:0.08, hlProtect:0.20,
     soften:0,
     bloom:0, bloomThresh:0.75, hal:0,
-    grain:0, vignette:0.10, vignetteWarm:false, hotspot:0,
-    relight:0.10, relightWarm:0.02, lightRadius:0.85, falloff:0.06, dirLight:0,
-    shadowTint:[3,2,-2], highlightTint:[5,2,0]
+    grain:0, vignette:0.08, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
              // strong center hotspot, hard-clipped flash whites
