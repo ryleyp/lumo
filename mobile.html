@@ -179,6 +179,7 @@
   .sw-photopass2{background:linear-gradient(135deg,#f7f4ec,#ccd6dd 45%,#3d6b8e)}
   .sw-wedding{background:linear-gradient(135deg,#fffaf3,#f2dfc9 45%,#b9a68f)}
   .sw-wedding2{background:linear-gradient(135deg,#f5e9db,#c9cdd6 45%,#5b6b7e)}
+  .sw-wedding3{background:linear-gradient(135deg,#fff1e5,#edc4bb 43%,#a1b2c8 72%,#536c86)}
   .sw-g7x{background:linear-gradient(135deg,#ffffff,#dfe6ee 38%,#2a3140)}
   .sw-pecra{background:radial-gradient(circle at 42% 38%,#f0e8dd 0 28%,#b9a58f 45%,#3a3f4a 90%)}
   .sw-digicam{background:linear-gradient(135deg,#ffe7d6,#c9d8c5 45%,#8fa3b8)}
@@ -320,6 +321,11 @@
           <div class="swatch sw-wedding2"></div>
           <div class="name">Wedding 2</div>
           <div class="sub">backlit fix · warm</div>
+        </div>
+        <div class="preset" data-preset="wedding3">
+          <div class="swatch sw-wedding3"></div>
+          <div class="name">Wedding 3</div>
+          <div class="sub">warm · soft portrait</div>
         </div>
         <div class="preset" data-preset="g7x">
           <div class="swatch sw-g7x"></div>
@@ -513,7 +519,7 @@
 const $ = s => document.querySelector(s);
 const stage = $('#stage'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
 const fileInput = $('#file'), cameraInput = $('#cameraFile'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint'), busy = $('#busy');
-const APP_BUILD = '2026-07-05-1';
+const APP_BUILD = '2026-11-08-wedding3';
 const SW_URL = './sw-mobile.js?v=' + encodeURIComponent(APP_BUILD);
 
 /* ============================================================
@@ -685,6 +691,21 @@ const PRESETS = {
     grain:0, vignette:0.06, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
     depth:{ bokeh:0, dim:0, lift:0.55, clarity:0.12 },
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  wedding3: { // Wedding 3 — soft warm backlit wedding portrait.
+               // Based on the user's wedding portrait edit: lift faces
+               // without washing out blue clouds, keep the slate-blue
+               // dress and pale pink flowers natural, no heavy filter.
+               // The subject mask adds subtle lift/clarity, without blur.
+    exposure:0.20, rGain:1.045, gGain:1.00, bGain:0.96,
+    contrast:1.07, filmic:0.12, lift:0, sat:1.03, vibrance:0.12,
+    brightness:0.07, highlights:0.42, shadows:0.56, blackPoint:0.08, whites:0.06, hlProtect:0.20,
+    soften:0,
+    bloom:0.02, bloomThresh:0.72, hal:0,
+    grain:0, vignette:0.12, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    depth:{ bokeh:0, dim:0, lift:0.38, clarity:0.10 },
     shadowTint:[0,0,0], highlightTint:[0,0,0]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
