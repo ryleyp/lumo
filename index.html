@@ -99,6 +99,7 @@
   .sw-wedding{background:linear-gradient(135deg,#fffaf3,#f2dfc9 45%,#b9a68f)}
   .sw-wedding2{background:linear-gradient(135deg,#f5e9db,#c9cdd6 45%,#5b6b7e)}
   .sw-wedding3{background:linear-gradient(135deg,#fff1e5,#edc4bb 43%,#a1b2c8 72%,#536c86)}
+  .sw-wedding4{background:linear-gradient(135deg,#f9e6d9,#e8bcb4 42%,#8199b0 72%,#30475c)}
   .sw-g7x{background:linear-gradient(135deg,#ffffff,#dfe6ee 38%,#2a3140)}
   .sw-pecra{background:radial-gradient(circle at 42% 38%,#f0e8dd 0 28%,#b9a58f 45%,#3a3f4a 90%)}
   .sw-digicam{background:linear-gradient(135deg,#ffe7d6,#c9d8c5 45%,#8fa3b8)}
@@ -245,6 +246,11 @@
           <div class="swatch sw-wedding3"></div>
           <div class="name">Wedding 3</div>
           <div class="sub">warm · soft portrait</div>
+        </div>
+        <div class="preset" data-preset="wedding4">
+          <div class="swatch sw-wedding4"></div>
+          <div class="name">Wedding 4</div>
+          <div class="sub">clear · natural portrait</div>
         </div>
         <div class="preset" data-preset="g7x">
           <div class="swatch sw-g7x"></div>
@@ -676,6 +682,19 @@ const PRESETS = {
     grain:0, vignette:0.12, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
     depth:{ bokeh:0, dim:0, lift:0.38, clarity:0.10 },
+    shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  wedding4: { // Wedding 4 — Wedding 3, but clearer and less hazy.
+    // Keep warm skin and pale flowers while adding contrast and sky detail.
+    // Reduce global shadow lift, subject lift and bloom for clean blacks.
+    exposure:0.16, rGain:1.04, gGain:1.00, bGain:0.965,
+    contrast:1.10, filmic:0.08, lift:0, sat:1.03, vibrance:0.10,
+    brightness:0.04, highlights:0.34, shadows:0.42, blackPoint:0.12, whites:0.10, hlProtect:0.20,
+    soften:0,
+    bloom:0, bloomThresh:0.72, hal:0,
+    grain:0, vignette:0.10, vignetteWarm:false, hotspot:0,
+    relight:0, relightWarm:0,
+    depth:{ bokeh:0, dim:0, lift:0.22, clarity:0.08 },
     shadowTint:[0,0,0], highlightTint:[0,0,0]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
