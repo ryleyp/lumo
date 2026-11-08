@@ -97,6 +97,7 @@
   .sw-photopass{background:linear-gradient(135deg,#fff1d6,#f4b57f 45%,#3d6b8e)}
   .sw-photopass2{background:linear-gradient(135deg,#f7f4ec,#ccd6dd 45%,#3d6b8e)}
   .sw-wedding{background:linear-gradient(135deg,#fffaf3,#f2dfc9 45%,#b9a68f)}
+  .sw-wedding2{background:linear-gradient(135deg,#f5e9db,#c9cdd6 45%,#5b6b7e)}
   .sw-g7x{background:linear-gradient(135deg,#ffffff,#dfe6ee 38%,#2a3140)}
   .sw-pecra{background:radial-gradient(circle at 42% 38%,#f0e8dd 0 28%,#b9a58f 45%,#3a3f4a 90%)}
   .sw-digicam{background:linear-gradient(135deg,#ffe7d6,#c9d8c5 45%,#8fa3b8)}
@@ -233,6 +234,11 @@
           <div class="swatch sw-wedding"></div>
           <div class="name">Wedding</div>
           <div class="sub">bright · airy</div>
+        </div>
+        <div class="preset" data-preset="wedding2">
+          <div class="swatch sw-wedding2"></div>
+          <div class="name">Wedding 2</div>
+          <div class="sub">backlit fix · warm</div>
         </div>
         <div class="preset" data-preset="g7x">
           <div class="swatch sw-g7x"></div>
@@ -633,6 +639,22 @@ const PRESETS = {
     grain:0, vignette:0.12, vignetteWarm:false, hotspot:0,
     relight:0, relightWarm:0,
     shadowTint:[0,0,0], highlightTint:[0,0,0]
+  },
+  wedding2: { // Wedding 2 — backlit outdoor fix:
+              // phone shots against a bright sky leave faces dim and
+              // flat with a hazy, cool cast. Shadow lift + a gentle
+              // draggable relight open up the subjects, highlight
+              // recovery brings the sky back, a firmer black point
+              // cuts the haze, and warm WB + vibrance fix the
+              // overcast color so skin reads natural.
+    exposure:0.20, rGain:1.035, gGain:0.99, bGain:0.97,
+    contrast:1.09, filmic:0.15, lift:0, sat:1.04, vibrance:0.14,
+    brightness:0.07, highlights:0.40, shadows:0.52, blackPoint:0.06, whites:0.06, hlProtect:0.25,
+    soften:0,
+    bloom:0, bloomThresh:0.75, hal:0,
+    grain:0, vignette:0.10, vignetteWarm:false, hotspot:0,
+    relight:0.10, relightWarm:0.02, lightRadius:0.85, falloff:0.06, dirLight:0,
+    shadowTint:[3,2,-2], highlightTint:[5,2,0]
   },
   g7x: {     // G7X Flash — clean digicam direct flash:
              // strong center hotspot, hard-clipped flash whites
