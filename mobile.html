@@ -525,7 +525,7 @@
 const $ = s => document.querySelector(s);
 const stage = $('#stage'), canvas = $('#canvas'), ctx = canvas.getContext('2d');
 const fileInput = $('#file'), cameraInput = $('#cameraFile'), lightHandle = $('#lightHandle'), cmpHint = $('#cmpHint'), busy = $('#busy');
-const APP_BUILD = '2026-11-08-wedding4';
+const APP_BUILD = '2026-11-08-wedding4-light-handle';
 const SW_URL = './sw-mobile.js?v=' + encodeURIComponent(APP_BUILD);
 
 /* ============================================================
@@ -1498,7 +1498,14 @@ function defaultLight(){        // flash-led looks center the light
     ? {x:0.5,y:0.5} : {x:0.5,y:0.28};
 }
 function placeHandle(){
-  if(!srcImage || !lightActive()){ lightHandle.style.display='none'; return; }
+  // On phones, the draggable light marker is an editing control.
+  // Keep the photo unobstructed in Looks, Adjust, and Export.
+  const isMobileEditor=window.matchMedia('(max-width:840px)').matches;
+  const onLightTab=$('#editorTabs').dataset.tab==='light';
+  if(!srcImage || !lightActive() || (isMobileEditor && !onLightTab)){
+    lightHandle.style.display='none';
+    return;
+  }
   const cr=canvas.getBoundingClientRect(), sr=stage.getBoundingClientRect();
   lightHandle.style.display='block';
   lightHandle.style.left=(cr.left-sr.left + state.light.x*cr.width)+'px';
@@ -1879,6 +1886,7 @@ $('#editorTabs').addEventListener('click', e=>{
   const btn=e.target.closest('.tab-btn[data-tab]'); if(!btn) return;
   $('#editorTabs').dataset.tab=btn.dataset.tab;
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b=>b.classList.toggle('active',b===btn));
+  placeHandle();
 });
 loadCustomPresets();
 buildSliders(); syncSliders(); syncMainControls();
